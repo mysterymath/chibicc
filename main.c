@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <ctype.h>
 
 #include <assert.h>
@@ -21,6 +22,10 @@ typedef struct {
   char bank;
   char *ptr;
 } CharBPtr;
+
+//
+// Tokenizer
+//
 
 typedef enum {
   TK_PUNCT, // Punctuators
@@ -136,8 +141,8 @@ static TokenBPtr tokenize(void) {
       continue;
     }
 
-    // Punctuator
-    if (*G(p) == '+' || *G(p) == '-') {
+    // Punctuators
+    if (ispunct(*G(p))) {
       cur = G(cur)->next = new_token(TK_PUNCT, p, p.ptr + 1);
       p.ptr++;
       continue;
@@ -150,6 +155,164 @@ static TokenBPtr tokenize(void) {
   return G(head)->next;
 }
 
+//
+// Parser
+//
+
+typedef enum {
+  ND_ADD, // +
+  ND_SUB, // -
+  ND_MUL, // *
+  ND_DIV, // /
+  ND_NUM, // Integer
+} NodeKind;
+
+// AST node type
+typedef struct Node Node;
+typedef struct {
+  char bank;
+  Node *ptr;
+} NodeBPtr;
+struct Node {
+  NodeKind kind; // Node kind
+  NodeBPtr lhs;  // Left-hand side
+  NodeBPtr rhs;  // Right-hand side
+  int val;       // Used if kind == ND_NUM
+};
+
+static NodeBPtr new_node(NodeKind kind) {
+  VoidBPtr vnode = bcalloc(1, sizeof(Node));
+  NodeBPtr node = {vnode.bank, vnode.ptr};
+  G(node)->kind = kind;
+  return node;
+}
+
+static NodeBPtr new_binary(NodeKind kind, NodeBPtr lhs, NodeBPtr rhs) {
+  NodeBPtr node = new_node(kind);
+  G(node)->lhs = lhs;
+  G(node)->rhs = rhs;
+  return node;
+}
+
+static NodeBPtr new_num(int val) {
+  NodeBPtr node = new_node(ND_NUM);
+  G(node)->val = val;
+  return node;
+}
+
+static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok);
+static NodeBPtr mul(TokenBPtr *rest, TokenBPtr tok);
+static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok);
+
+// expr = mul ("+" mul | "-" mul)*
+static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok) {
+  NodeBPtr node = mul(&tok, tok);
+
+  for (;;) {
+    if (equal(tok, "+")) {
+      node = new_binary(ND_ADD, node, mul(&tok, G(tok)->next));
+      continue;
+    }
+
+    if (equal(tok, "-")) {
+      node = new_binary(ND_SUB, node, mul(&tok, G(tok)->next));
+      continue;
+    }
+
+    *rest = tok;
+    return node;
+  }
+}
+
+// mul = primary ("*" primary | "/" primary)*
+static NodeBPtr mul(TokenBPtr *rest, TokenBPtr tok) {
+  NodeBPtr node = primary(&tok, tok);
+
+  for (;;) {
+    if (equal(tok, "*")) {
+      node = new_binary(ND_MUL, node, primary(&tok, G(tok)->next));
+      continue;
+    }
+
+    if (equal(tok, "/")) {
+      node = new_binary(ND_DIV, node, primary(&tok, G(tok)->next));
+      continue;
+    }
+
+    *rest = tok;
+    return node;
+  }
+}
+
+// primary = "(" expr ")" | num
+static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok) {
+  if (equal(tok, "(")) {
+    NodeBPtr node = expr(&tok, G(tok)->next);
+    *rest = skip(tok, ")");
+    return node;
+  }
+
+  if (G(tok)->kind == TK_NUM) {
+    NodeBPtr node = new_num(G(tok)->val);
+    *rest = G(tok)->next;
+    return node;
+  }
+
+  error_tok(tok, "expected an expression");
+}
+
+//
+// Code generator
+//
+
+static int depth;
+
+static void push(void) {
+  printf("  pha\n");
+  depth++;
+}
+
+static void pop(char *arg) {
+  printf("  tax\n");
+  printf("  pla\n");
+  printf("  sta %s\n", arg);
+  printf("  txa\n");
+  depth--;
+}
+
+static void gen_expr(NodeBPtr node) {
+  if (G(node)->kind == ND_NUM) {
+    printf("  lda #%d\n", G(node)->val);
+    return;
+  }
+
+  gen_expr(G(node)->rhs);
+  push();
+  gen_expr(G(node)->lhs);
+  pop("__rc2");
+
+  switch (G(node)->kind) {
+  case ND_ADD:
+    printf("  clc\n");
+    printf("  adc __rc2\n");
+    return;
+  case ND_SUB:
+    printf("  sec\n");
+    printf("  sbc __rc2\n");
+    return;
+  case ND_MUL:
+    printf("  ldx __rc2\n");
+    printf("  jsr __mulqi3\n");
+    return;
+  case ND_DIV:
+    printf("  ldx __rc2\n");
+    printf("  jsr __divqi3\n");
+    return;
+  }
+
+  error("invalid expression");
+}
+
 int main(int argc, char **argv) {
   if (argc != 2)
     error("%s: invalid number of arguments", argv[0]);
@@ -160,29 +323,20 @@ int main(int argc, char **argv) {
   strcpy(G(current_input), argv[1]);
 
   TokenBPtr tok = tokenize();
+  NodeBPtr node = expr(&tok, tok);
 
+  if (G(tok)->kind != TK_EOF)
+    error_tok(tok, "extra token");
+
+  printf("  .zeropage __rc2\n");
+  printf("\n");
   printf("  .globl main\n");
   printf("main:\n");
 
-  // The first token must be a number
-  printf("  lda #%d\n", get_number(tok));
-  tok = G(tok)->next;
-
-  // ... followed by either `+ <number>` or `- <number>`.
-  while (G(tok)->kind != TK_EOF) {
-    if (equal(tok, "+")) {
-      printf("  clc\n");
-      printf("  adc #%d\n", get_number(G(tok)->next));
-      tok = G(G(tok)->next)->next;
-      continue;
-    }
-
-    tok = skip(tok, "-");
-    printf("  sec\n");
-    printf("  sub #%d\n", get_number(tok));
-    tok = G(tok)->next;
-  }
-
+  // Traverse the AST to emit assembly.
+  gen_expr(node);
   printf("  rts\n");
+
+  assert(depth == 0);
   return 0;
 }
