@@ -117,6 +117,19 @@ static TokenBPtr new_token(TokenKind kind, CharBPtr start, char *end) {
   return tok;
 }
 
+static bool startswith(char *p, char *q) {
+  return strncmp(p, q, strlen(q)) == 0;
+}
+
+// Read a punctuator token from p and returns its length.
+static int read_punct(char *p) {
+  if (startswith(p, "==") || startswith(p, "!=") ||
+      startswith(p, "<=") || startswith(p, ">="))
+    return 2;
+
+  return ispunct(*p) ? 1 : 0;
+}
+
 // Tokenize `current_input` and returns new tokens.
 static TokenBPtr tokenize(void) {
   CharBPtr p = current_input;
@@ -142,9 +155,10 @@ static TokenBPtr tokenize(void) {
     }
 
     // Punctuators
-    if (ispunct(*G(p))) {
-      cur = G(cur)->next = new_token(TK_PUNCT, p, p.ptr + 1);
-      p.ptr++;
+    int punct_len = read_punct(G(p));
+    if (punct_len) {
+      cur = G(cur)->next = new_token(TK_PUNCT, p, p.ptr + punct_len);
+      p.ptr += G(cur)->len;
       continue;
     }
 
@@ -165,6 +179,10 @@ typedef enum {
   ND_MUL, // *
   ND_DIV, // /
   ND_NEG, // unary -
+  ND_EQ,  // ==
+  ND_NE,  // !=
+  ND_LT,  // <
+  ND_GE,  // >=
   ND_NUM, // Integer
 } NodeKind;
 
@@ -208,12 +226,69 @@ static NodeBPtr new_num(int val) {
 }
 
 static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok);
+static NodeBPtr equality(TokenBPtr *rest, TokenBPtr tok);
+static NodeBPtr relational(TokenBPtr  *rest, TokenBPtr  tok);
+static NodeBPtr add(TokenBPtr  *rest, TokenBPtr  tok);
 static NodeBPtr mul(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr unary(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok);
 
-// expr = mul ("+" mul | "-" mul)*
+// expr = equality
 static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok) {
+  return equality(rest, tok);
+}
+
+// equality = relational ("==" relational | "!=" relational)*
+static NodeBPtr equality(TokenBPtr *rest, TokenBPtr tok) {
+  NodeBPtr node = relational(&tok, tok);
+
+  for (;;) {
+    if (equal(tok, "==")) {
+      node = new_binary(ND_EQ, node, relational(&tok, G(tok)->next));
+      continue;
+    }
+
+    if (equal(tok, "!=")) {
+      node = new_binary(ND_NE, node, relational(&tok, G(tok)->next));
+      continue;
+    }
+
+    *rest = tok;
+    return node;
+  }
+}
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+static NodeBPtr relational(TokenBPtr *rest, TokenBPtr tok) {
+  NodeBPtr node = add(&tok, tok);
+
+  for (;;) {
+    if (equal(tok, "<")) {
+      node = new_binary(ND_LT, node, add(&tok, G(tok)->next));
+      continue;
+    }
+
+    if (equal(tok, "<=")) {
+      node = new_binary(ND_GE, add(&tok, G(tok)->next), node);
+      continue;
+    }
+
+    if (equal(tok, ">")) {
+      node = new_binary(ND_LT, add(&tok, G(tok)->next), node);
+      continue;
+    }
+
+    if (equal(tok, ">=")) {
+      node = new_binary(ND_GE, node, add(&tok, G(tok)->next));
+      continue;
+    }
+
+    *rest = tok;
+    return node;
+  }
+}
+
+// add = mul ("+" mul | "-" mul)*
+static NodeBPtr add(TokenBPtr *rest, TokenBPtr tok) {
   NodeBPtr node = mul(&tok, tok);
 
   for (;;) {
@@ -355,6 +430,50 @@ static void gen_expr(NodeBPtr node) {
     return;
   case ND_DIV:
     printf("  jsr __divqi3\n");
+    return;
+  case ND_EQ:
+  case ND_NE:
+    printf("  cpx __rc3\n");
+    printf("  bne 1f\n");
+    printf("  cmp __rc2\n");
+    printf("  bne 1f\n");
+    if (G(node)->kind == ND_EQ) {
+      printf("  lda #1\n");
+      printf("  bne 2f\n");
+      printf("1:\n");
+      printf("  lda #0\n");
+    } else {
+      printf("  lda #0\n");
+      printf("  bne 2f\n");
+      printf("1:\n");
+      printf("  lda #1\n");
+    }
+    printf("2:\n");
+    printf("  ldx #0\n");
+
+    return;
+
+  case ND_LT:
+  case ND_GE:
+    printf("  cmp __rc2\n");
+    printf("  tay\n");
+    printf("  txa\n");
+    printf("  sbc __rc2\n");
+    printf("  bvc 1f\n");
+    printf("  eor #$80\n");
+    printf("1:\n");
+
+    if (G(node)->kind == ND_LT)
+      printf("  bcs 1f\n");
+    else
+      printf("  bcc 1f\n");
+    printf("  lda #1\n");
+    printf("  bne 2f\n");
+    printf("1:\n");
+    printf("  lda #0\n");
+    printf("2:\n");
+    printf("  ldx #0\n");
+
     return;
   }
 
