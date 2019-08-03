@@ -1,5 +1,6 @@
 #include <ctype.h>
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -45,6 +46,9 @@ void set_ram_bank(char bank) {}
 
 #define G(BPtr) (set_ram_bank(BPtr.bank), BPtr.ptr)
 
+// Input string
+static CharBPtr current_input;
+
 // Reports an error and exit.
 static void error(char *fmt, ...) {
   va_list ap;
@@ -52,6 +56,30 @@ static void error(char *fmt, ...) {
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
   exit(1);
+}
+
+// Reports an error location and exit.
+static void verror_at(CharBPtr loc, char *fmt, va_list ap) {
+  assert(loc.bank == current_input.bank && "Error location out of range");
+  int pos = loc.ptr - current_input.ptr;
+  fprintf(stderr, "%s\n", G(current_input));
+  fprintf(stderr, "%*s", pos, ""); // print pos spaces.
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
+static void error_at(CharBPtr loc, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  verror_at(loc, fmt, ap);
+}
+
+static void error_tok(TokenBPtr tok, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  verror_at(G(tok)->loc, fmt, ap);
 }
 
 // Consumes the current token if it matches `s`.
@@ -63,14 +91,14 @@ static bool equal(TokenBPtr tok, char *op) {
 // Ensure that the current token is `s`.
 static TokenBPtr skip(TokenBPtr tok, char *s) {
   if (!equal(tok, s))
-    error("expected '%s'", s);
+    error_tok(tok, "expected '%s'", s);
   return G(tok)->next;
 }
 
 // Ensure that the current token is TK_NUM.
 static int get_number(TokenBPtr tok) {
   if (G(tok)->kind != TK_NUM)
-    error("expected a number");
+    error_tok(tok, "expected a number");
   return G(tok)->val;
 }
 
@@ -84,8 +112,9 @@ static TokenBPtr new_token(TokenKind kind, CharBPtr start, char *end) {
   return tok;
 }
 
-// Tokenize `p` and returns new tokens.
-static TokenBPtr tokenize(CharBPtr p) {
+// Tokenize `current_input` and returns new tokens.
+static TokenBPtr tokenize(void) {
+  CharBPtr p = current_input;
   VoidBPtr vhead = bcalloc(1, sizeof(Token));
   TokenBPtr head = {vhead.bank, vhead.ptr};
   TokenBPtr cur = head;
@@ -114,7 +143,7 @@ static TokenBPtr tokenize(CharBPtr p) {
       continue;
     }
 
-    error("invalid token");
+    error_at(p, "invalid token");
   }
 
   cur = G(cur)->next = new_token(TK_EOF, p, p.ptr);
@@ -126,10 +155,11 @@ int main(int argc, char **argv) {
     error("%s: invalid number of arguments", argv[0]);
 
   VoidBPtr vtext = bcalloc(1, strlen(argv[1])+1);
-  CharBPtr text = {vtext.bank, vtext.ptr};
-  strcpy(G(text), argv[1]);
+  current_input.bank = vtext.bank;
+  current_input.ptr = vtext.ptr;
+  strcpy(G(current_input), argv[1]);
 
-  TokenBPtr tok = tokenize(text);
+  TokenBPtr tok = tokenize();
 
   printf("  .globl main\n");
   printf("main:\n");
