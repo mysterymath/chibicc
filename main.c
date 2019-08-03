@@ -164,6 +164,7 @@ typedef enum {
   ND_SUB, // -
   ND_MUL, // *
   ND_DIV, // /
+  ND_NEG, // unary -
   ND_NUM, // Integer
 } NodeKind;
 
@@ -194,6 +195,12 @@ static NodeBPtr new_binary(NodeKind kind, NodeBPtr lhs, NodeBPtr rhs) {
   return node;
 }
 
+static NodeBPtr new_unary(NodeKind kind, NodeBPtr expr) {
+  NodeBPtr node = new_node(kind);
+  G(node)->lhs = expr;
+  return node;
+}
+
 static NodeBPtr new_num(int val) {
   NodeBPtr node = new_node(ND_NUM);
   G(node)->val = val;
@@ -202,6 +209,7 @@ static NodeBPtr new_num(int val) {
 
 static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr mul(TokenBPtr *rest, TokenBPtr tok);
+static NodeBPtr unary(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok);
 
 // expr = mul ("+" mul | "-" mul)*
@@ -224,24 +232,36 @@ static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok) {
   }
 }
 
-// mul = primary ("*" primary | "/" primary)*
+// mul = unary ("*" unary | "/" unary)*
 static NodeBPtr mul(TokenBPtr *rest, TokenBPtr tok) {
-  NodeBPtr node = primary(&tok, tok);
+  NodeBPtr node = unary(&tok, tok);
 
   for (;;) {
     if (equal(tok, "*")) {
-      node = new_binary(ND_MUL, node, primary(&tok, G(tok)->next));
+      node = new_binary(ND_MUL, node, unary(&tok, G(tok)->next));
       continue;
     }
 
     if (equal(tok, "/")) {
-      node = new_binary(ND_DIV, node, primary(&tok, G(tok)->next));
+      node = new_binary(ND_DIV, node, unary(&tok, G(tok)->next));
       continue;
     }
 
     *rest = tok;
     return node;
   }
+}
+
+// unary = ("+" | "-") unary
+//       | primary
+static NodeBPtr unary(TokenBPtr *rest, TokenBPtr tok) {
+  if (equal(tok, "+"))
+    return unary(rest, G(tok)->next);
+
+  if (equal(tok, "-"))
+    return new_unary(ND_NEG, unary(rest, G(tok)->next));
+
+  return primary(rest, tok);
 }
 
 // primary = "(" expr ")" | num
@@ -285,10 +305,24 @@ static void pop(char reg) {
 }
 
 static void gen_expr(NodeBPtr node) {
-  if (G(node)->kind == ND_NUM) {
+  switch (G(node)->kind) {
+  case ND_NUM: {
     unsigned val = G(node)->val;
     printf("  lda #%d\n", val & 0xff);
     printf("  ldx #%d\n", val >> 8);
+    return;
+  }
+  case ND_NEG:
+    gen_expr(G(node)->lhs);
+    printf("  clc\n");
+    printf("  eor #$ff\n");
+    printf("  adc #1\n");
+    printf("  tay\n");
+    printf("  txa\n");
+    printf("  eor #$ff\n");
+    printf("  adc #0\n");
+    printf("  tax\n");
+    printf("  tya\n");
     return;
   }
 
