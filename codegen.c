@@ -16,6 +16,12 @@ static void push(void) {
   depth++;
 }
 
+static void popax() {
+  printf("  pla\n");
+  printf("  tax\n");
+  printf("  pla\n");
+}
+
 static void pop(char reg) {
   printf("  tay\n");
   printf("  pla\n");
@@ -113,11 +119,22 @@ static void gen_expr(Node *node) {
     printf("  sta (__rc2),y\n");
     printf("  pla\n");
     return;
-  case ND_FUNCALL:
-    printf("  lda #0\n");
-    printf("  tax\n");
+  case ND_FUNCALL: {
+    int nargs = 0;
+    for (Node *arg = node->args; arg; arg = arg->next) {
+      gen_expr(arg);
+      push();
+      nargs++;
+    }
+
+    for (int i = nargs - 1; i > 0; i--)
+      pop(2*i);
+    if (nargs)
+      popax();
+
     printf("  jsr %s\n", node->funcname);
     return;
+  }
   }
 
   gen_expr(node->rhs);

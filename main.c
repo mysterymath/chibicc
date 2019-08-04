@@ -14,7 +14,7 @@ int main(void) {
   cbm_k_open();
   cbm_k_chkin(2);
 
-  char text[80];
+  char text[4096];
 
   char *c = text;
   while (!(cbm_k_readst() & 0x40))
@@ -33,6 +33,7 @@ int main(void) {
 
   // Traverse the AST to emit assembly.
   codegen(prog);
+
 
   cbm_k_close(2);
   cbm_k_close(1);
