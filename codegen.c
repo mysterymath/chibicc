@@ -113,6 +113,11 @@ static void gen_expr(Node *node) {
     printf("  sta (__rc2),y\n");
     printf("  pla\n");
     return;
+  case ND_FUNCALL:
+    printf("  lda #0\n");
+    printf("  tax\n");
+    printf("  jsr %s\n", node->funcname);
+    return;
   }
 
   gen_expr(node->rhs);
