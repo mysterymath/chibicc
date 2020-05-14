@@ -95,8 +95,13 @@ static NodeBPtr compound_stmt(TokenBPtr *rest, TokenBPtr tok) {
   return node;
 }
 
-// expr-stmt = expr ";"
+// expr-stmt = expr? ";"
 static NodeBPtr expr_stmt(TokenBPtr *rest, TokenBPtr tok) {
+  if (equal(tok, ";")) {
+    *rest = G(tok)->next;
+    return new_node(ND_BLOCK);
+  }
+
   NodeBPtr node = new_unary(ND_EXPR_STMT, expr(&tok, tok));
   *rest = skip(tok, ";");
   return node;
