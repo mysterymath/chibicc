@@ -21,9 +21,10 @@ static void popax() {
   printf("  pla\n");
   printf("  tax\n");
   printf("  pla\n");
+  depth--;
 }
 
-static void pop(char reg) {
+static void pop_imag16(char reg) {
   printf("  tay\n");
   printf("  pla\n");
   printf("  sta __rc%d\n", reg + 1);
@@ -83,23 +84,54 @@ static void load(Type *ty) {
 
   printf("  sta __rc2\n");
   printf("  stx __rc3\n");
-  printf("  ldy #1\n");
-  printf("  lda (__rc2),y\n");
-  printf("  tax\n");
-  printf("  dey\n");
-  printf("  lda (__rc2),y\n");
+  if (ty->size == 1) {
+    printf("  ldx #0\n");
+    printf("  ldy #0\n");
+    printf("  lda (__rc2),y\n");
+  } else {
+    printf("  ldy #1\n");
+    printf("  lda (__rc2),y\n");
+    printf("  tax\n");
+    printf("  dey\n");
+    printf("  lda (__rc2),y\n");
+  }
 }
 
 // Store AX to an address that the stack top is pointing to.
-static void store(void) {
-  pop(2);
+static void store(Type *ty) {
+  pop_imag16(2);
+
   printf("  ldy #0\n");
-  printf("  sta (__rc2),y\n");
-  printf("  pha\n");
-  printf("  txa\n");
-  printf("  iny\n");
-  printf("  sta (__rc2),y\n");
-  printf("  pla\n");
+  if (ty->size == 1) {
+    printf("  sta (__rc2),y\n");
+  } else {
+    printf("  sta (__rc2),y\n");
+    printf("  pha\n");
+    printf("  txa\n");
+    printf("  iny\n");
+    printf("  sta (__rc2),y\n");
+    printf("  pla\n");
+  }
+}
+
+#define NUM_ARG_REGS 16
+
+static int assign_ptr_reg(bool *reg_used) {
+  int reg;
+  for (reg = 2; reg < NUM_ARG_REGS; reg += 2)
+    if (!reg_used[reg] && !reg_used[reg + 1])
+      break;
+  reg_used[reg] = reg_used[reg + 1] = true;
+  return reg;
+}
+
+static int assign_byte_reg(bool *reg_used) {
+  int reg;
+  for (reg = 0; reg < NUM_ARG_REGS; reg++)
+    if (!reg_used[reg])
+      break;
+  reg_used[reg] = true;
+  return reg;
 }
 
 // Generate code for a given node.
@@ -138,20 +170,88 @@ static void gen_expr(Node *node) {
     gen_addr(node->lhs);
     push();
     gen_expr(node->rhs);
-    store();
+    store(node->ty);
     return;
   case ND_FUNCALL: {
     int nargs = 0;
+    bool reg_used[NUM_ARG_REGS] = {0};
+    // Pushed registers in push order.
+    int saved_regs[4];
+    int num_saved = 0;
     for (Node *arg = node->args; arg; arg = arg->next) {
       gen_expr(arg);
-      push();
-      nargs++;
+
+      // Pointers are assigned to imaginary pointer registers
+      if (arg->ty->kind == TY_PTR) {
+        int reg = assign_ptr_reg(reg_used);
+
+        // RS1 is used for generating expressions, so push it.
+        if (reg == 2) {
+          printf("  pha\n");
+          saved_regs[num_saved++] = reg;
+          printf("  txa\n");
+          printf("  pha\n");
+          saved_regs[num_saved++] = reg + 1;
+          continue;
+        }
+
+        printf("  sta __rc%d\n", reg);
+        printf("  stx __rc%d\n", reg + 1);
+        continue;
+      }
+
+      // Assign each byte separately.
+      for (int i = 0; i < arg->ty->size; i++) {
+        int reg = assign_byte_reg(reg_used);
+
+        if (reg < 4) {
+          if (i == 1) {
+            printf("  tay\n");
+            printf("  txa\n");
+          }
+          printf("  pha\n");
+          if (i == 1)
+            printf("  tya\n");
+          saved_regs[num_saved++] = reg;
+          continue;
+        }
+
+        if (i == 0)
+          printf("  sta __rc%d\n", reg);
+        else
+          printf("  stx __rc%d\n", reg);
+      }
     }
 
-    for (int i = nargs - 1; i > 0; i--)
-      pop(2*i);
-    if (nargs)
-      popax();
+    // Restore any saved regs.
+    bool a_free = true;
+    bool a_in_y = false;
+    for (; num_saved > 0; --num_saved) {
+      int reg = saved_regs[num_saved - 1];
+
+      if (reg != 0 && !a_free) {
+        printf("  tay\n");
+        a_free = true;
+        a_in_y = true;
+      }
+
+      switch (reg) {
+      case 0:
+        printf("  pla\n");
+        a_free = false;
+        break;
+      case 1:
+        printf("  pla\n");
+        printf("  tax\n");
+        break;
+      default:
+        printf("  pla\n");
+        printf("  sta __rc%d\n", reg);
+        break;
+      }
+    }
+    if (a_in_y)
+      printf("  tya\n");
 
     printf("  jsr %s\n", node->funcname);
     return;
@@ -161,7 +261,7 @@ static void gen_expr(Node *node) {
   gen_expr(node->rhs);
   push();
   gen_expr(node->lhs);
-  pop(2);
+  pop_imag16(2);
 
   switch (node->kind) {
   case ND_ADD:
@@ -349,12 +449,28 @@ static void emit_text(Obj *prog) {
     printf("  tya\n");
 
     // Save passed-by-register arguments to the stack
-    int reg = 0;
+    bool reg_used[16] = {0};
+    unsigned reg_offsets[16];
     for (Obj *var = fn->params; var; var = var->next) {
-      if (!reg)
+      if (var->ty->kind == TY_PTR) {
+        int reg = assign_ptr_reg(reg_used);
+        reg_offsets[reg] = var->offset;
+        reg_offsets[reg + 1] = var->offset + 1;
+      } else {
+        for (int i = 0; i < var->ty->size; i++) {
+          int reg = assign_byte_reg(reg_used);
+          reg_offsets[reg] = var->offset + i;
+        }
+      }
+    }
+
+    for (int reg = 0; reg < sizeof(reg_used); reg++) {
+      if (!reg_used[reg])
+        continue;
+      if (reg == 0)
         printf("  pha\n");
 
-      unsigned offset = var->offset;
+      unsigned offset = reg_offsets[reg];
       printf("  clc\n");
       printf("  lda __rc30\n");
       printf("  adc #%d\n", offset & 0xff);
@@ -363,22 +479,19 @@ static void emit_text(Obj *prog) {
       printf("  adc #%d\n", offset >> 8 & 0xff);
       printf("  sta __rc17\n");
 
-      if (reg) {
-        printf("  lda __rc%d\n", reg++);
-        printf("  ldy #0\n");
-        printf("  sta (__rc16),y\n");
-        printf("  lda __rc%d\n", reg++);
-        printf("  iny\n");
-        printf("  sta (__rc16),y\n");
-      } else {
+      switch (reg) {
+      case 0:
         printf("  pla\n");
-        printf("  ldy #0\n");
-        printf("  sta (__rc16),y\n");
+        break;
+      case 1:
         printf("  txa\n");
-        printf("  iny\n");
-        printf("  sta (__rc16),y\n");
-        reg = 2;
+        break;
+      default:
+        printf("  lda __rc%d\n", reg);
+        break;
       }
+      printf("  ldy #0\n");
+      printf("  sta (__rc16),y\n");
     }
 
     // Emit code
