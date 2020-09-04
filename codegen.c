@@ -293,6 +293,7 @@ void codegen(Function *prog) {
 
     // Prologue
     unsigned stack_size = fn->stack_size;
+    printf("  tay\n");
     printf("  lda __rc30\n");
     printf("  pha\n");
     printf("  lda __rc31\n");
@@ -308,6 +309,40 @@ void codegen(Function *prog) {
     printf("  lda __rc1\n");
     printf("  sbc #%d\n", stack_size >> 8 & 0xff);
     printf("  sta __rc1\n");
+    printf("  tya\n");
+
+    // Save passed-by-register arguments to the stack
+    int reg = 0;
+    for (Obj *var = fn->params; var; var = var->next) {
+      if (!reg)
+        printf("  pha\n");
+
+      unsigned offset = var->offset;
+      printf("  clc\n");
+      printf("  lda __rc30\n");
+      printf("  adc #%d\n", offset & 0xff);
+      printf("  sta __rc16\n");
+      printf("  lda __rc31\n");
+      printf("  adc #%d\n", offset >> 8 & 0xff);
+      printf("  sta __rc17\n");
+
+      if (reg) {
+        printf("  lda __rc%d\n", reg++);
+        printf("  ldy #0\n");
+        printf("  sta (__rc16),y\n");
+        printf("  lda __rc%d\n", reg++);
+        printf("  iny\n");
+        printf("  sta (__rc16),y\n");
+      } else {
+        printf("  pla\n");
+        printf("  ldy #0\n");
+        printf("  sta (__rc16),y\n");
+        printf("  txa\n");
+        printf("  iny\n");
+        printf("  sta (__rc16),y\n");
+        reg = 2;
+      }
+    }
 
     // Emit code
     gen_stmt(fn->body);
