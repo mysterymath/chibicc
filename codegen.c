@@ -43,18 +43,24 @@ static int align_to(int n, int align) {
 // It's an error if a given node does not reside in memory.
 static void gen_addr(Node *node) {
   switch (node->kind) {
-  case ND_VAR: {
-    unsigned offset = node->var->offset;
-    printf("  clc\n");
-    printf("  lda __rc30\n");
-    printf("  adc #%d\n", offset & 0xff);
-    printf("  tay\n");
-    printf("  lda __rc31\n");
-    printf("  adc #%d\n", offset >> 8 & 0xff);
-    printf("  tax\n");
-    printf("  tya\n");
+  case ND_VAR:
+    if (node->var->is_local) {
+      // Local variable
+      unsigned offset = node->var->offset;
+      printf("  clc\n");
+      printf("  lda __rc30\n");
+      printf("  adc #%d\n", offset & 0xff);
+      printf("  tay\n");
+      printf("  lda __rc31\n");
+      printf("  adc #%d\n", offset >> 8 & 0xff);
+      printf("  tax\n");
+      printf("  tya\n");
+    } else {
+      // Global variable
+      printf("  lda #<%s\n", node->var->name);
+      printf("  ldx #>%s\n", node->var->name);
+    }
     return;
-  }
   case ND_DEREF:
     gen_expr(node->lhs);
     return;
@@ -300,9 +306,19 @@ static void assign_lvar_offsets(Obj *prog) {
   }
 }
 
-void codegen(Obj *prog) {
-  assign_lvar_offsets(prog);
+static void emit_data(Obj *prog) {
+  for (Obj *var = prog; var; var = var->next) {
+    if (var->is_function)
+      continue;
 
+    printf("  .data\n");
+    printf("  .globl %s\n", var->name);
+    printf("%s:\n", var->name);
+    printf("  .zero %d\n", var->ty->size);
+  }
+}
+
+static void emit_text(Obj *prog) {
   for (Obj *fn = prog; fn; fn = fn->next) {
     if (!fn->is_function)
       continue;
@@ -385,4 +401,10 @@ void codegen(Obj *prog) {
     printf("  ldx __rc3\n");
     printf("  rts\n");
   }
+}
+
+void codegen(Obj *prog) {
+  assign_lvar_offsets(prog);
+  emit_data(prog);
+  emit_text(prog);
 }
