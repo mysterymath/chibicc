@@ -1,6 +1,7 @@
 #include "chibicc.h"
 
 static int depth;
+static Function *current_fn;
 
 static void gen_expr(Node *node);
 
@@ -260,7 +261,7 @@ static void gen_stmt(Node *node) {
     return;
   case ND_RETURN:
     gen_expr(node->lhs);
-    printf("  jmp .L.return\n");
+    printf("  jmp .L.return.%s\n", current_fn->name);
     return;
   case ND_EXPR_STMT:
     gen_expr(node->lhs);
@@ -272,53 +273,60 @@ static void gen_stmt(Node *node) {
 
 // Assign offsets to local variables.
 static void assign_lvar_offsets(Function *prog) {
-  int offset = 0;
-  for (Obj *var = prog->locals; var; var = var->next) {
-    offset += 2;
-    var->offset = -offset;
+  for (Function *fn = prog; fn; fn = fn->next) {
+    int offset = 0;
+    for (Obj *var = fn->locals; var; var = var->next) {
+      offset += 2;
+      var->offset = -offset;
+    }
+    fn->stack_size = offset;
   }
-  prog->stack_size = offset;
 }
 
 void codegen(Function *prog) {
   assign_lvar_offsets(prog);
 
-  printf("  .globl main\n");
-  printf("main:\n");
+  for (Function *fn = prog; fn; fn = fn->next) {
+    printf("  .globl %s\n", fn->name);
+    printf("%s:\n", fn->name);
+    current_fn = fn;
 
-  // Prologue
-  unsigned stack_size = prog->stack_size;
-  printf("  lda __rc30\n");
-  printf("  pha\n");
-  printf("  lda __rc31\n");
-  printf("  pha\n");
-  printf("  lda __rc0\n");
-  printf("  sta __rc30\n");
-  printf("  lda __rc1\n");
-  printf("  sta __rc31\n");
-  printf("  sec\n");
-  printf("  lda __rc0\n");
-  printf("  sbc #%d\n", stack_size & 0xff);
-  printf("  sta __rc0\n");
-  printf("  lda __rc1\n");
-  printf("  sbc #%d\n", stack_size >> 8 & 0xff);
-  printf("  sta __rc1\n");
+    // Prologue
+    unsigned stack_size = fn->stack_size;
+    printf("  lda __rc30\n");
+    printf("  pha\n");
+    printf("  lda __rc31\n");
+    printf("  pha\n");
+    printf("  lda __rc0\n");
+    printf("  sta __rc30\n");
+    printf("  lda __rc1\n");
+    printf("  sta __rc31\n");
+    printf("  sec\n");
+    printf("  lda __rc0\n");
+    printf("  sbc #%d\n", stack_size & 0xff);
+    printf("  sta __rc0\n");
+    printf("  lda __rc1\n");
+    printf("  sbc #%d\n", stack_size >> 8 & 0xff);
+    printf("  sta __rc1\n");
 
-  gen_stmt(prog->body);
-  assert(depth == 0);
+    // Emit code
+    gen_stmt(fn->body);
+    assert(depth == 0);
 
-  printf(".L.return:\n");
-  printf("  sta __rc2\n");
-  printf("  stx __rc3\n");
-  printf("  lda __rc30\n");
-  printf("  sta __rc0\n");
-  printf("  lda __rc31\n");
-  printf("  sta __rc1\n");
-  printf("  pla\n");
-  printf("  sta __rc31\n");
-  printf("  pla\n");
-  printf("  sta __rc30\n");
-  printf("  lda __rc2\n");
-  printf("  ldx __rc3\n");
-  printf("  rts\n");
+    // Epilogue
+    printf(".L.return.%s:\n", fn->name);
+    printf("  sta __rc2\n");
+    printf("  stx __rc3\n");
+    printf("  lda __rc30\n");
+    printf("  sta __rc0\n");
+    printf("  lda __rc31\n");
+    printf("  sta __rc1\n");
+    printf("  pla\n");
+    printf("  sta __rc31\n");
+    printf("  pla\n");
+    printf("  sta __rc30\n");
+    printf("  lda __rc2\n");
+    printf("  ldx __rc3\n");
+    printf("  rts\n");
+  }
 }
