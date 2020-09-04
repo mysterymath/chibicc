@@ -4,6 +4,7 @@
 // accumulated to this list.
 ObjBPtr locals;
 
+static NodeBPtr compound_stmt(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr expr_stmt(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr assign(TokenBPtr  *rest, TokenBPtr tok);
@@ -65,6 +66,7 @@ static ObjBPtr new_lvar(CharBPtr name) {
 }
 
 // stmt = "return" expr ";"
+//      | "{" compound-stmt
 //      | expr-stmt
 static NodeBPtr stmt(TokenBPtr *rest, TokenBPtr tok) {
   if (equal(tok, "return")) {
@@ -73,7 +75,24 @@ static NodeBPtr stmt(TokenBPtr *rest, TokenBPtr tok) {
     return node;
   }
 
+  if (equal(tok, "{"))
+    return compound_stmt(rest, G(tok)->next);
+
   return expr_stmt(rest, tok);
+}
+
+// compound-stmt = stmt* "}"
+static NodeBPtr compound_stmt(TokenBPtr *rest, TokenBPtr tok) {
+  VoidBPtr vhead = bcalloc(1, sizeof(Node));
+  NodeBPtr head = {vhead.bank, vhead.ptr};
+  NodeBPtr cur = head;
+  while (!equal(tok, "}"))
+    cur = G(cur)->next = stmt(&tok, tok);
+
+  NodeBPtr node = new_node(ND_BLOCK);
+  G(node)->body = G(head)->next;
+  *rest = G(tok)->next;
+  return node;
 }
 
 // expr-stmt = expr ";"
@@ -225,16 +244,11 @@ static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok) {
 
 // program = stmt*
 FunctionBPtr parse(TokenBPtr tok) {
-  VoidBPtr vhead = bcalloc(1, sizeof(Node));
-  NodeBPtr head = {vhead.bank, vhead.ptr};
-  NodeBPtr cur = head;
-
-  while (G(tok)->kind != TK_EOF)
-    cur = G(cur)->next = stmt(&tok, tok);
+  tok = skip(tok, "{");
 
   VoidBPtr vprog = bcalloc(1, sizeof(Function));
   FunctionBPtr prog = {vprog.bank, vprog.ptr};
-  G(prog)->body = G(head)->next;
+  G(prog)->body = compound_stmt(&tok, tok);
   G(prog)->locals = locals;
   return prog;
 }

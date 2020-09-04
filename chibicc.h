@@ -115,6 +115,7 @@ typedef enum {
   ND_GE,        // >=
   ND_ASSIGN,    // =
   ND_RETURN,    // "return"
+  ND_BLOCK,     // { ... }
   ND_EXPR_STMT, // Expression statement
   ND_VAR,       // Variable
   ND_NUM,       // Integer
@@ -126,6 +127,10 @@ struct Node {
   NodeBPtr next; // Next node
   NodeBPtr lhs;  // Left-hand side
   NodeBPtr rhs;  // Right-hand side
+
+  // Block
+  NodeBPtr body;
+
   ObjBPtr var;   // Used if kind == ND_VAR
   int val;       // Used if kind == ND_NUM
 };

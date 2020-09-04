@@ -171,6 +171,10 @@ static void gen_expr(NodeBPtr node) {
 
 static void gen_stmt(NodeBPtr node) {
   switch (G(node)->kind) {
+  case ND_BLOCK:
+    for (NodeBPtr n = G(node)->body; n.ptr; n = G(n)->next)
+      gen_stmt(n);
+    return;
   case ND_RETURN:
     gen_expr(G(node)->lhs);
     printf("  jmp .L.return\n");
@@ -217,10 +221,8 @@ void codegen(FunctionBPtr prog) {
   printf("  sbc #%d\n", stack_size >> 8 & 0xff);
   printf("  sta __rc1\n");
 
-  for (NodeBPtr n = G(prog)->body; n.ptr; n = G(n)->next) {
-    gen_stmt(n);
-    assert(depth == 0);
-  }
+  gen_stmt(G(prog)->body);
+  assert(depth == 0);
 
   printf(".L.return:\n");
   printf("  sta __rc2\n");
