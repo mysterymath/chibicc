@@ -11,8 +11,9 @@ int main(void) {
 
   fclose(input);
 
+  // Tokenize and parse.
   Token* tok = tokenize(text);
-  Function* prog = parse(tok);
+  Obj* prog = parse(tok);
 
   // Traverse the AST to emit assembly.
   freopen("a.s", "w", stdout);
