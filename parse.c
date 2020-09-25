@@ -2,6 +2,7 @@
 
 static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr expr_stmt(TokenBPtr *rest, TokenBPtr tok);
+static NodeBPtr assign(TokenBPtr  *rest, TokenBPtr tok);
 static NodeBPtr equality(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr relational(TokenBPtr  *rest, TokenBPtr  tok);
 static NodeBPtr add(TokenBPtr  *rest, TokenBPtr  tok);
@@ -35,6 +36,12 @@ static NodeBPtr new_num(int val) {
   return node;
 }
 
+static NodeBPtr new_var_node(char name) {
+  NodeBPtr node = new_node(ND_VAR);
+  G(node)->name = name;
+  return node;
+}
+
 // stmt = expr-stmt
 static NodeBPtr stmt(TokenBPtr *rest, TokenBPtr tok) {
   return expr_stmt(rest, tok);
@@ -47,9 +54,18 @@ static NodeBPtr expr_stmt(TokenBPtr *rest, TokenBPtr tok) {
   return node;
 }
 
-// expr = equality
+// expr = assign
 static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok) {
-  return equality(rest, tok);
+  return assign(rest, tok);
+}
+
+// assign = equality ("=" assign)?
+static NodeBPtr assign(TokenBPtr *rest, TokenBPtr tok) {
+  NodeBPtr node = equality(&tok, tok);
+  if (equal(tok, "="))
+    node = new_binary(ND_ASSIGN, node, assign(&tok, G(tok)->next));
+  *rest = tok;
+  return node;
 }
 
 // equality = relational ("==" relational | "!=" relational)*
@@ -153,11 +169,17 @@ static NodeBPtr unary(TokenBPtr *rest, TokenBPtr tok) {
   return primary(rest, tok);
 }
 
-// primary = "(" expr ")" | num
+// primary = "(" expr ")" | ident | num
 static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok) {
   if (equal(tok, "(")) {
     NodeBPtr node = expr(&tok, G(tok)->next);
     *rest = skip(tok, ")");
+    return node;
+  }
+
+  if (G(tok)->kind == TK_IDENT) {
+    NodeBPtr node = new_var_node(*G(G(tok)->loc));
+    *rest = G(tok)->next;
     return node;
   }
 

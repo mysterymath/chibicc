@@ -103,6 +103,13 @@ TokenBPtr tokenize(CharBPtr p) {
       continue;
     }
 
+    // Identifier
+    if ('a' <= *G(p) && *G(p) <= 'z') {
+      cur = G(cur)->next = new_token(TK_IDENT, p, p.ptr + 1);
+      p.ptr++;
+      continue;
+    }
+
     // Punctuators
     int punct_len = read_punct(G(p));
     if (punct_len) {

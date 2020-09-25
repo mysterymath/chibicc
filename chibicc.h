@@ -30,6 +30,7 @@ typedef struct {
 //
 
 typedef enum {
+  TK_IDENT, // Identifiers
   TK_PUNCT, // Punctuators
   TK_NUM,   // Numeric literals
   TK_EOF,   // End-of-file markers
@@ -71,7 +72,9 @@ typedef enum {
   ND_NE,        // !=
   ND_LT,        // <
   ND_GE,        // >=
+  ND_ASSIGN,    // =
   ND_EXPR_STMT, // Expression statement
+  ND_VAR,       // Variable
   ND_NUM,       // Integer
 } NodeKind;
 
@@ -86,6 +89,7 @@ struct Node {
   NodeBPtr next; // Next node
   NodeBPtr lhs;  // Left-hand side
   NodeBPtr rhs;  // Right-hand side
+  char name;     // Used if kind == ND_VAR
   int val;       // Used if kind == ND_NUM
 };
 

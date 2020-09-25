@@ -19,12 +19,32 @@ static void pop(char reg) {
   depth--;
 }
 
+// Compute the absolute address of a given node.
+// It's an error if a given node does not reside in memory.
+static void gen_addr(NodeBPtr node) {
+  if (G(node)->kind == ND_VAR) {
+    unsigned offset = (G(node)->name - 'a') * -2;
+    printf("  clc\n");
+    printf("  lda __rc30\n");
+    printf("  adc #%d\n", offset & 0xff);
+    printf("  tay\n");
+    printf("  lda __rc31\n");
+    printf("  adc #%d\n", offset >> 8 & 0xff);
+    printf("  tax\n");
+    printf("  tya\n");
+    return;
+  }
+
+  error("not an lvalue");
+}
+
+// Generate code for a given node.
 static void gen_expr(NodeBPtr node) {
   switch (G(node)->kind) {
   case ND_NUM: {
     unsigned val = G(node)->val;
     printf("  lda #%d\n", val & 0xff);
-    printf("  ldx #%d\n", val >> 8);
+    printf("  ldx #%d\n", val >> 8 & 0xff);
     return;
   }
   case ND_NEG:
@@ -38,6 +58,29 @@ static void gen_expr(NodeBPtr node) {
     printf("  adc #0\n");
     printf("  tax\n");
     printf("  tya\n");
+    return;
+  case ND_VAR:
+    gen_addr(node);
+    printf("  sta __rc2\n");
+    printf("  stx __rc3\n");
+    printf("  ldy #1\n");
+    printf("  lda (__rc2),y\n");
+    printf("  tax\n");
+    printf("  dey\n");
+    printf("  lda (__rc2),y\n");
+    return;
+  case ND_ASSIGN:
+    gen_addr(G(node)->lhs);
+    push();
+    gen_expr(G(node)->rhs);
+    pop(2);
+    printf("  ldy #0\n");
+    printf("  sta (__rc2),y\n");
+    printf("  pha\n");
+    printf("  txa\n");
+    printf("  iny\n");
+    printf("  sta (__rc2),y\n");
+    printf("  pla\n");
     return;
   }
 
@@ -135,10 +178,35 @@ void codegen(NodeBPtr node) {
   printf("  .globl main\n");
   printf("main:\n");
 
+  // Prologue
+  printf("  lda __rc30\n");
+  printf("  pha\n");
+  printf("  lda __rc31\n");
+  printf("  pha\n");
+  printf("  lda __rc0\n");
+  printf("  sta __rc30\n");
+  printf("  lda __rc1\n");
+  printf("  sta __rc31\n");
+  printf("  sec\n");
+  printf("  lda __rc0\n");
+  printf("  sbc #52\n");
+  printf("  sta __rc0\n");
+  printf("  lda __rc1\n");
+  printf("  sbc #0\n");
+  printf("  sta __rc1\n");
+
   for (NodeBPtr n = node; n.bank; n = G(n)->next) {
     gen_stmt(n);
     assert(depth == 0);
   }
 
+  printf("  lda __rc30\n");
+  printf("  sta __rc0\n");
+  printf("  lda __rc31\n");
+  printf("  sta __rc1\n");
+  printf("  pla\n");
+  printf("  sta __rc31\n");
+  printf("  pla\n");
+  printf("  sta __rc30\n");
   printf("  rts\n");
 }
