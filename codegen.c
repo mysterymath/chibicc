@@ -120,6 +120,14 @@ static void gen_expr(NodeBPtr node) {
   error("invalid expression");
 }
 
+static void gen_stmt(NodeBPtr node) {
+  if (G(node)->kind == ND_EXPR_STMT) {
+    gen_expr(G(node)->lhs);
+    return;
+  }
+
+  error("invalid statement");
+}
 void codegen(NodeBPtr node) {
   printf("  .zeropage __rc2\n");
   printf("\n");
@@ -127,8 +135,10 @@ void codegen(NodeBPtr node) {
   printf("  .globl main\n");
   printf("main:\n");
 
-  gen_expr(node);
-  printf("  rts\n");
+  for (NodeBPtr n = node; n.bank; n = G(n)->next) {
+    gen_stmt(n);
+    assert(depth == 0);
+  }
 
-  assert(depth == 0);
+  printf("  rts\n");
 }

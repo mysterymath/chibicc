@@ -62,16 +62,17 @@ TokenBPtr tokenize(CharBPtr p);
 //
 
 typedef enum {
-  ND_ADD, // +
-  ND_SUB, // -
-  ND_MUL, // *
-  ND_DIV, // /
-  ND_NEG, // unary -
-  ND_EQ,  // ==
-  ND_NE,  // !=
-  ND_LT,  // <
-  ND_GE,  // >=
-  ND_NUM, // Integer
+  ND_ADD,       // +
+  ND_SUB,       // -
+  ND_MUL,       // *
+  ND_DIV,       // /
+  ND_NEG,       // unary -
+  ND_EQ,        // ==
+  ND_NE,        // !=
+  ND_LT,        // <
+  ND_GE,        // >=
+  ND_EXPR_STMT, // Expression statement
+  ND_NUM,       // Integer
 } NodeKind;
 
 // AST node type
@@ -82,6 +83,7 @@ typedef struct {
 } NodeBPtr;
 struct Node {
   NodeKind kind; // Node kind
+  NodeBPtr next; // Next node
   NodeBPtr lhs;  // Left-hand side
   NodeBPtr rhs;  // Right-hand side
   int val;       // Used if kind == ND_NUM

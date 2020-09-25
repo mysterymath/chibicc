@@ -1,6 +1,7 @@
 #include "chibicc.h"
 
 static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok);
+static NodeBPtr expr_stmt(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr equality(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr relational(TokenBPtr  *rest, TokenBPtr  tok);
 static NodeBPtr add(TokenBPtr  *rest, TokenBPtr  tok);
@@ -31,6 +32,18 @@ static NodeBPtr new_unary(NodeKind kind, NodeBPtr expr) {
 static NodeBPtr new_num(int val) {
   NodeBPtr node = new_node(ND_NUM);
   G(node)->val = val;
+  return node;
+}
+
+// stmt = expr-stmt
+static NodeBPtr stmt(TokenBPtr *rest, TokenBPtr tok) {
+  return expr_stmt(rest, tok);
+}
+
+// expr-stmt = expr ";"
+static NodeBPtr expr_stmt(TokenBPtr *rest, TokenBPtr tok) {
+  NodeBPtr node = new_unary(ND_EXPR_STMT, expr(&tok, tok));
+  *rest = skip(tok, ";");
   return node;
 }
 
@@ -157,9 +170,12 @@ static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok) {
   error_tok(tok, "expected an expression");
 }
 
+// program = stmt*
 NodeBPtr parse(TokenBPtr tok) {
-  NodeBPtr node = expr(&tok, tok);
-  if (G(tok)->kind != TK_EOF)
-    error_tok(tok, "extra token");
-  return node;
+  VoidBPtr vhead = bcalloc(1, sizeof(Node));
+  NodeBPtr head = {vhead.bank, vhead.ptr};
+  NodeBPtr cur = head;
+  while (G(tok)->kind != TK_EOF)
+    cur = G(cur)->next = stmt(&tok, tok);
+  return G(head)->next;
 }
