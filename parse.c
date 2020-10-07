@@ -64,8 +64,15 @@ static ObjBPtr new_lvar(CharBPtr name) {
   return var;
 }
 
-// stmt = expr-stmt
+// stmt = "return" expr ";"
+//      | expr-stmt
 static NodeBPtr stmt(TokenBPtr *rest, TokenBPtr tok) {
+  if (equal(tok, "return")) {
+    NodeBPtr node = new_unary(ND_RETURN, expr(&tok, G(tok)->next));
+    *rest = skip(tok, ";");
+    return node;
+  }
+
   return expr_stmt(rest, tok);
 }
 

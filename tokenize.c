@@ -89,6 +89,12 @@ static int read_punct(char *p) {
   return ispunct(*p) ? 1 : 0;
 }
 
+static void convert_keywords(TokenBPtr tok) {
+  for (TokenBPtr t = tok; G(t)->kind != TK_EOF; t = G(t)->next)
+    if (equal(t, "return"))
+      G(t)->kind = TK_KEYWORD;
+}
+
 // Tokenize `current_input` and returns new tokens.
 TokenBPtr tokenize(CharBPtr p) {
   current_input = p;
@@ -113,7 +119,7 @@ TokenBPtr tokenize(CharBPtr p) {
       continue;
     }
 
-    // Identifier
+    // Identifier or keyword
     if (is_ident1(*G(p))) {
       CharBPtr start = p;
       do {
@@ -135,6 +141,7 @@ TokenBPtr tokenize(CharBPtr p) {
   }
 
   cur = G(cur)->next = new_token(TK_EOF, p, p.ptr);
+  convert_keywords(G(head)->next);
   return G(head)->next;
 }
 

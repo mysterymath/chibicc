@@ -170,7 +170,12 @@ static void gen_expr(NodeBPtr node) {
 }
 
 static void gen_stmt(NodeBPtr node) {
-  if (G(node)->kind == ND_EXPR_STMT) {
+  switch (G(node)->kind) {
+  case ND_RETURN:
+    gen_expr(G(node)->lhs);
+    printf("  jmp .L.return\n");
+    return;
+  case ND_EXPR_STMT:
     gen_expr(G(node)->lhs);
     return;
   }
@@ -217,6 +222,7 @@ void codegen(FunctionBPtr prog) {
     assert(depth == 0);
   }
 
+  printf(".L.return:\n");
   printf("  sta __rc2\n");
   printf("  stx __rc3\n");
   printf("  lda __rc30\n");
