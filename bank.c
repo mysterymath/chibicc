@@ -27,3 +27,19 @@ VoidBPtr bcalloc(size_t count, size_t size) {
 void set_ram_bank(char bank) {
   RAM_BANK = bank;
 }
+
+int bstrncmp(CharBPtr l, CharBPtr r, size_t size) {
+  char tmp[size+1];
+  strncpy(tmp, G(r), size);
+  tmp[size] = '\0';
+  return strncmp(G(l), tmp, size);
+}
+
+CharBPtr bstrndup(CharBPtr str, size_t size) {
+  char tmp[size+1];
+  strncpy(tmp, G(str), size);
+  tmp[size] = '\0';
+  VoidBPtr vdup = bcalloc(1, size+1);
+  CharBPtr dup = {vdup.bank, vdup.ptr};
+  strncpy(G(dup), tmp, size+1);
+}

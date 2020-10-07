@@ -1,5 +1,9 @@
 #include "chibicc.h"
 
+// All local variable instances created during parsing are
+// accumulated to this list.
+ObjBPtr locals;
+
 static NodeBPtr expr(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr expr_stmt(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr assign(TokenBPtr  *rest, TokenBPtr tok);
@@ -9,6 +13,15 @@ static NodeBPtr add(TokenBPtr  *rest, TokenBPtr  tok);
 static NodeBPtr mul(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr unary(TokenBPtr *rest, TokenBPtr tok);
 static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok);
+
+// Find a local variable by name.
+static ObjBPtr find_var(TokenBPtr tok) {
+  for (ObjBPtr var = locals; var.ptr; var = G(var)->next)
+    if (strlen(G(G(var)->name)) == G(tok)->len && !bstrncmp(G(tok)->loc, G(var)->name, G(tok)->len))
+      return var;
+  ObjBPtr null = {0, NULL};
+  return null;
+}
 
 static NodeBPtr new_node(NodeKind kind) {
   VoidBPtr vnode = bcalloc(1, sizeof(Node));
@@ -36,10 +49,19 @@ static NodeBPtr new_num(int val) {
   return node;
 }
 
-static NodeBPtr new_var_node(char name) {
+static NodeBPtr new_var_node(ObjBPtr var) {
   NodeBPtr node = new_node(ND_VAR);
-  G(node)->name = name;
+  G(node)->var = var;
   return node;
+}
+
+static ObjBPtr new_lvar(CharBPtr name) {
+  VoidBPtr vvar = bcalloc(1, sizeof(Obj));
+  ObjBPtr var = {vvar.bank, vvar.ptr};
+  G(var)->name = name;
+  G(var)->next = locals;
+  locals = var;
+  return var;
 }
 
 // stmt = expr-stmt
@@ -178,9 +200,11 @@ static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok) {
   }
 
   if (G(tok)->kind == TK_IDENT) {
-    NodeBPtr node = new_var_node(*G(G(tok)->loc));
+    ObjBPtr var = find_var(tok);
+    if (!var.ptr)
+      var = new_lvar(bstrndup(G(tok)->loc, G(tok)->len));
     *rest = G(tok)->next;
-    return node;
+    return new_var_node(var);
   }
 
   if (G(tok)->kind == TK_NUM) {
@@ -193,11 +217,17 @@ static NodeBPtr primary(TokenBPtr *rest, TokenBPtr tok) {
 }
 
 // program = stmt*
-NodeBPtr parse(TokenBPtr tok) {
+FunctionBPtr parse(TokenBPtr tok) {
   VoidBPtr vhead = bcalloc(1, sizeof(Node));
   NodeBPtr head = {vhead.bank, vhead.ptr};
   NodeBPtr cur = head;
+
   while (G(tok)->kind != TK_EOF)
     cur = G(cur)->next = stmt(&tok, tok);
-  return G(head)->next;
+
+  VoidBPtr vprog = bcalloc(1, sizeof(Function));
+  FunctionBPtr prog = {vprog.bank, vprog.ptr};
+  G(prog)->body = G(head)->next;
+  G(prog)->locals = locals;
+  return prog;
 }

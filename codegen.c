@@ -19,11 +19,17 @@ static void pop(char reg) {
   depth--;
 }
 
+// Round up `n` to the nearest multiple of `align`. For instance,
+// align_to(5, 8) returns 8 and align_to(11, 8) returns 16.
+static int align_to(int n, int align) {
+  return (n + align - 1) / align * align;
+}
+
 // Compute the absolute address of a given node.
 // It's an error if a given node does not reside in memory.
 static void gen_addr(NodeBPtr node) {
   if (G(node)->kind == ND_VAR) {
-    unsigned offset = (G(node)->name - 'a') * -2;
+    unsigned offset = G(G(node)->var)->offset;
     printf("  clc\n");
     printf("  lda __rc30\n");
     printf("  adc #%d\n", offset & 0xff);
@@ -171,14 +177,25 @@ static void gen_stmt(NodeBPtr node) {
 
   error("invalid statement");
 }
-void codegen(NodeBPtr node) {
-  printf("  .zeropage __rc2\n");
-  printf("\n");
+
+// Assign offsets to local variables.
+static void assign_lvar_offsets(FunctionBPtr prog) {
+  int offset = 0;
+  for (ObjBPtr var = G(prog)->locals; var.ptr; var = G(var)->next) {
+    offset += 2;
+    G(var)->offset = -offset;
+  }
+  G(prog)->stack_size = offset;
+}
+
+void codegen(FunctionBPtr prog) {
+  assign_lvar_offsets(prog);
 
   printf("  .globl main\n");
   printf("main:\n");
 
   // Prologue
+  unsigned stack_size = G(prog)->stack_size;
   printf("  lda __rc30\n");
   printf("  pha\n");
   printf("  lda __rc31\n");
@@ -189,13 +206,13 @@ void codegen(NodeBPtr node) {
   printf("  sta __rc31\n");
   printf("  sec\n");
   printf("  lda __rc0\n");
-  printf("  sbc #52\n");
+  printf("  sbc #%d\n", stack_size & 0xff);
   printf("  sta __rc0\n");
   printf("  lda __rc1\n");
-  printf("  sbc #0\n");
+  printf("  sbc #%d\n", stack_size >> 8 & 0xff);
   printf("  sta __rc1\n");
 
-  for (NodeBPtr n = node; n.bank; n = G(n)->next) {
+  for (NodeBPtr n = G(prog)->body; n.ptr; n = G(n)->next) {
     gen_stmt(n);
     assert(depth == 0);
   }

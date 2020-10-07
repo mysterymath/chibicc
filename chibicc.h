@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <ctype.h>
 #include <cbm.h>
@@ -7,7 +8,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 
 unsigned long strtoul(const char *s, char **p, int base);
 
@@ -30,10 +30,20 @@ typedef struct {
   char *ptr;
 } CharBPtr;
 
+int bstrncmp(CharBPtr l, CharBPtr r, size_t size);
+CharBPtr bstrndup(CharBPtr str, size_t size);
+
+typedef struct Node Node;
+typedef struct {
+  char bank;
+  Node *ptr;
+} NodeBPtr;
+
 //
 // tokenize.c
 //
 
+// Token
 typedef enum {
   TK_IDENT, // Identifiers
   TK_PUNCT, // Punctuators
@@ -67,6 +77,31 @@ TokenBPtr tokenize(CharBPtr p);
 // parse.c
 //
 
+// Local variable
+typedef struct Obj Obj;
+typedef struct {
+  char bank;
+  Obj *ptr;
+} ObjBPtr;
+struct Obj {
+  ObjBPtr next;
+  CharBPtr name; // Variable name
+  int offset; // Offset from RBP
+};
+
+// Function
+typedef struct Function Function;
+typedef struct {
+  char bank;
+  Function *ptr;
+} FunctionBPtr;
+struct Function {
+  NodeBPtr body;
+  ObjBPtr locals;
+  int stack_size;
+};
+
+// AST node
 typedef enum {
   ND_ADD,       // +
   ND_SUB,       // -
@@ -84,24 +119,19 @@ typedef enum {
 } NodeKind;
 
 // AST node type
-typedef struct Node Node;
-typedef struct {
-  char bank;
-  Node *ptr;
-} NodeBPtr;
 struct Node {
   NodeKind kind; // Node kind
   NodeBPtr next; // Next node
   NodeBPtr lhs;  // Left-hand side
   NodeBPtr rhs;  // Right-hand side
-  char name;     // Used if kind == ND_VAR
+  ObjBPtr var;   // Used if kind == ND_VAR
   int val;       // Used if kind == ND_NUM
 };
 
-NodeBPtr parse(TokenBPtr tok);
+FunctionBPtr parse(TokenBPtr tok);
 
 //
 // codegen.c
 //
 
-void codegen(NodeBPtr node);
+void codegen(FunctionBPtr prog);

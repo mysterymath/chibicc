@@ -24,8 +24,10 @@ int main(void) {
   putchar('\n');
 
   TokenBPtr tok = tokenize(text);
-  NodeBPtr node = parse(tok);
-  codegen(node);
+  FunctionBPtr prog = parse(tok);
+
+  // Traverse the AST to emit assembly.
+  codegen(prog);
 
   return 0;
 }
