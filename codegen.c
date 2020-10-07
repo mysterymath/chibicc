@@ -2,6 +2,11 @@
 
 static int depth;
 
+static int count(void) {
+  static int i = 1;
+  return i++;
+}
+
 static void push(void) {
   printf("  pha\n");
   printf("  txa\n");
@@ -171,6 +176,21 @@ static void gen_expr(Node *node) {
 
 static void gen_stmt(Node *node) {
   switch (node->kind) {
+  case ND_IF: {
+    int c = count();
+    gen_expr(node->cond);
+    printf("  cpx #0\n");
+    printf("  bne .L.then.%d\n", c);
+    printf("  cmp #0\n");
+    printf("  bne .L.then.%d\n", c);
+    if (node->els)
+      gen_stmt(node->els);
+    printf("  jmp .L.end.%d\n", c);
+    printf(".L.then.%d:\n", c);
+    gen_stmt(node->then);
+    printf(".L.end.%d:\n", c);
+    return;
+  }
   case ND_BLOCK:
     for (Node *n = node->body; n; n = n->next)
       gen_stmt(n);
