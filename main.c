@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
 
   printf("  .globl main\n");
   printf("main:\n");
-  printf("  mov $%d, %%rax\n", atoi(argv[1]));
-  printf("  ret\n");
+  printf("  lda #%d\n", atoi(argv[1]));
+  printf("  rts\n");
   return 0;
 }
