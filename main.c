@@ -269,43 +269,57 @@ static int depth;
 
 static void push(void) {
   printf("  pha\n");
+  printf("  txa\n");
+  printf("  pha\n");
   depth++;
 }
 
-static void pop(char *arg) {
-  printf("  tax\n");
+static void pop(char reg) {
+  printf("  tay\n");
   printf("  pla\n");
-  printf("  sta %s\n", arg);
-  printf("  txa\n");
+  printf("  sta __rc%d\n", reg+1);
+  printf("  pla\n");
+  printf("  sta __rc%d\n", reg);
+  printf("  tya\n");
   depth--;
 }
 
 static void gen_expr(NodeBPtr node) {
   if (G(node)->kind == ND_NUM) {
-    printf("  lda #%d\n", G(node)->val);
+    unsigned val = G(node)->val;
+    printf("  lda #%d\n", val & 0xff);
+    printf("  ldx #%d\n", val >> 8);
     return;
   }
 
   gen_expr(G(node)->rhs);
   push();
   gen_expr(G(node)->lhs);
-  pop("__rc2");
+  pop(2);
 
   switch (G(node)->kind) {
   case ND_ADD:
     printf("  clc\n");
     printf("  adc __rc2\n");
+    printf("  tay\n");
+    printf("  txa\n");
+    printf("  adc __rc3\n");
+    printf("  tax\n");
+    printf("  tya\n");
     return;
   case ND_SUB:
     printf("  sec\n");
     printf("  sbc __rc2\n");
+    printf("  tay\n");
+    printf("  txa\n");
+    printf("  sbc __rc3\n");
+    printf("  tax\n");
+    printf("  tya\n");
     return;
   case ND_MUL:
-    printf("  ldx __rc2\n");
     printf("  jsr __mulqi3\n");
     return;
   case ND_DIV:
-    printf("  ldx __rc2\n");
     printf("  jsr __divqi3\n");
     return;
   }
