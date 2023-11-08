@@ -21,16 +21,6 @@ typedef struct {
   char *ptr;
 } CharBPtr;
 
-typedef struct Chunk Chunk;
-typedef struct {
-  char bank;
-  Chunk *ptr;
-} ChunkBPtr;
-struct Chunk {
-  ChunkBPtr next;
-  char text[];
-};
-
 typedef enum {
   TK_PUNCT, // Punctuators
   TK_NUM,   // Numeric literals
@@ -95,42 +85,36 @@ static TokenBPtr new_token(TokenKind kind, CharBPtr start, char *end) {
 }
 
 // Tokenize `p` and returns new tokens.
-static TokenBPtr tokenize(ChunkBPtr c) {
+static TokenBPtr tokenize(CharBPtr p) {
   VoidBPtr vhead = bcalloc(1, sizeof(Token));
   TokenBPtr head = {vhead.bank, vhead.ptr};
   TokenBPtr cur = head;
-  CharBPtr p;
 
-  while (c.bank) {
-    p.bank = c.bank;
-    p.ptr = c.ptr->text;
-    while (*G(p)) {
-      // Skip whitespace characters.
-      if (isspace(*G(p))) {
-        ++p.ptr;
-        continue;
-      }
-
-      // Numeric literal
-      if (isdigit(*G(p))) {
-        cur = G(cur)->next = new_token(TK_NUM, p, p.ptr);
-        char *end;
-        G(cur)->val = strtoul(G(p), &end, 10);
-        G(cur)->len = end - G(p);
-        p.ptr = end;
-        continue;
-      }
-
-      // Punctuator
-      if (*G(p) == '+' || *G(p) == '-') {
-        cur = G(cur)->next = new_token(TK_PUNCT, p, p.ptr + 1);
-        p.ptr++;
-        continue;
-      }
-
-      error("invalid token");
+  while (*G(p)) {
+    // Skip whitespace characters.
+    if (isspace(*G(p))) {
+      ++p.ptr;
+      continue;
     }
-    c = G(c)->next;
+
+    // Numeric literal
+    if (isdigit(*G(p))) {
+      cur = G(cur)->next = new_token(TK_NUM, p, p.ptr);
+      char *end;
+      G(cur)->val = strtoul(G(p), &end, 10);
+      G(cur)->len = end - G(p);
+      p.ptr = end;
+      continue;
+    }
+
+    // Punctuator
+    if (*G(p) == '+' || *G(p) == '-') {
+      cur = G(cur)->next = new_token(TK_PUNCT, p, p.ptr + 1);
+      p.ptr++;
+      continue;
+    }
+
+    error("invalid token");
   }
 
   cur = G(cur)->next = new_token(TK_EOF, p, p.ptr);
@@ -141,11 +125,11 @@ int main(int argc, char **argv) {
   if (argc != 2)
     error("%s: invalid number of arguments", argv[0]);
 
-  VoidBPtr vchunk = bcalloc(1, strlen(argv[1])+1);
-  ChunkBPtr chunk = {vchunk.bank, vchunk.ptr};
-  strcpy(G(chunk)->text, argv[1]);
+  VoidBPtr vtext = bcalloc(1, strlen(argv[1])+1);
+  CharBPtr text = {vtext.bank, vtext.ptr};
+  strcpy(G(text), argv[1]);
 
-  TokenBPtr tok = tokenize(chunk);
+  TokenBPtr tok = tokenize(text);
 
   printf("  .globl main\n");
   printf("main:\n");
