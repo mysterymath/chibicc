@@ -109,10 +109,10 @@ static void gen_expr(NodeBPtr node) {
     printf("  tya\n");
     return;
   case ND_MUL:
-    printf("  jsr __mulqi3\n");
+    printf("  jsr __mulhi3\n");
     return;
   case ND_DIV:
-    printf("  jsr __divqi3\n");
+    printf("  jsr __divhi3\n");
     return;
   case ND_EQ:
   case ND_NE:
