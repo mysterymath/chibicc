@@ -7,8 +7,8 @@ static CharBPtr current_input;
 void error(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
+  vprintf(fmt, ap);
+  printf("\n");
   exit(1);
 }
 
@@ -16,11 +16,11 @@ void error(char *fmt, ...) {
 void verror_at(CharBPtr loc, char *fmt, va_list ap) {
   assert(loc.bank == current_input.bank && "Error location out of range");
   int pos = loc.ptr - current_input.ptr;
-  fprintf(stderr, "%s\n", G(current_input));
-  fprintf(stderr, "%*s", pos, ""); // print pos spaces.
-  fprintf(stderr, "^ ");
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
+  printf( "%s\n", G(current_input));
+  printf("%*s", pos, ""); // print pos spaces.
+  printf("^ ");
+  vprintf(fmt, ap);
+  printf("\n");
   exit(1);
 }
 
