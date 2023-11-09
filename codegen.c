@@ -217,6 +217,8 @@ void codegen(FunctionBPtr prog) {
     assert(depth == 0);
   }
 
+  printf("  sta __rc2\n");
+  printf("  stx __rc3\n");
   printf("  lda __rc30\n");
   printf("  sta __rc0\n");
   printf("  lda __rc31\n");
@@ -225,5 +227,7 @@ void codegen(FunctionBPtr prog) {
   printf("  sta __rc31\n");
   printf("  pla\n");
   printf("  sta __rc30\n");
+  printf("  lda __rc2\n");
+  printf("  ldx __rc3\n");
   printf("  rts\n");
 }
