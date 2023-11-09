@@ -98,7 +98,7 @@ TokenBPtr tokenize(CharBPtr p) {
       cur = G(cur)->next = new_token(TK_NUM, p, p.ptr);
       char *end;
       G(cur)->val = strtoul(G(p), &end, 10);
-      G(cur)->len = end - G(p);
+      G(cur)->len = end - p.ptr;
       p.ptr = end;
       continue;
     }

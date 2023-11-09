@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+unsigned long strtoul(const char *s, char **p, int base);
+
 //
 // bank.c
 //
