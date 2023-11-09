@@ -1,15 +1,32 @@
 #include "chibicc.h" 
 
-int main(int argc, char **argv) {
-  if (argc != 2)
-    error("%s: invalid number of arguments", argv[0]);
+int main(void) {
+  // Switch to ISO mode
+  putchar(0x0f);
+  printf("Please enter C string:\n");
 
-  VoidBPtr vtext = bcalloc(1, strlen(argv[1])+1);
-  CharBPtr text = {vtext.bank, vtext.ptr};
-  strcpy(G(text), argv[1]);
-  TokenBPtr tok = tokenize(text);
-  NodeBPtr node = parse(tok);
-  codegen(node);
+  // TODO: Error
+  char line[80];
+  char *l = line;
+  while (true) {
+    *l = cbm_k_chrin();
+    if (*l == '\r') {
+      *l = '\n';
+      l++;
+      break;
+    }
+    l++;
+  }
+  *l = '\0';
+
+  printf("\n%s", line);
+
+  //VoidBPtr vtext = bcalloc(1, strlen(argv[1])+1);
+  //CharBPtr text = {vtext.bank, vtext.ptr};
+  //strcpy(G(text), argv[1]);
+  //TokenBPtr tok = tokenize(text);
+  //NodeBPtr node = parse(tok);
+  //codegen(node);
 
   return 0;
 }

@@ -1,10 +1,13 @@
 #include <assert.h>
 #include <ctype.h>
+#include <cbm.h>
+#include <cx16.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 
 unsigned long strtoul(const char *s, char **p, int base);
 
