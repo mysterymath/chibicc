@@ -6,10 +6,12 @@ unsigned bank_ends[64];
 VoidBPtr bmalloc(size_t size) {
   assert(size < 8192 && "Allocating more than one bank");
   for (char bank = 1; bank < 64; ++bank) {
-    if (bank_ends[bank] + size < 8192) {
-      VoidBPtr ptr = {bank, (char*)0xA000 + bank_ends[bank]};
-      bank_ends[bank] += size;
-    }
+    if (bank_ends[bank] + size > 8192)
+      continue;
+
+    VoidBPtr ptr = {bank, (char*)0xA000 + bank_ends[bank]};
+    bank_ends[bank] += size;
+    return ptr;
   }
   printf("error: out of memory\n");
   abort();
