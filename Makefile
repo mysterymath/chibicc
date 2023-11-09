@@ -1,4 +1,5 @@
-CFLAGS=-std=c11 -g -fno-common
+CC=~/mos-bin/mos-cx16-clang
+CFLAGS=-std=c11 -Os -g -fno-common
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)
 
