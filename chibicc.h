@@ -1,7 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
-#include <ctype.h>
 #include <cbm.h>
+#include <ctype.h>
 #include <cx16.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -9,35 +9,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-unsigned long strtoul(const char *s, char **p, int base);
-
 //
-// bank.c
+// stdlib.c
 //
 
-typedef struct {
-  char bank;
-  void *ptr;
-} VoidBPtr;
-
-VoidBPtr bcalloc(size_t count, size_t size);
-void set_ram_bank(char bank);
-
-#define G(BPtr) (set_ram_bank(BPtr.bank), BPtr.ptr)
-
-typedef struct {
-  char bank;
-  char *ptr;
-} CharBPtr;
-
-int bstrncmp(CharBPtr l, CharBPtr r, size_t size);
-CharBPtr bstrndup(CharBPtr str, size_t size);
+char *strndup(const char *str, size_t size);
+unsigned long strtoul(const char *restrict s, char **restrict p, int base);
 
 typedef struct Node Node;
-typedef struct {
-  char bank;
-  Node *ptr;
-} NodeBPtr;
 
 //
 // tokenize.c
@@ -54,25 +33,21 @@ typedef enum {
 
 // Token type
 typedef struct Token Token;
-typedef struct {
-  char bank;
-  Token *ptr;
-} TokenBPtr;
 struct Token {
   TokenKind kind; // Token kind
-  TokenBPtr next; // Next token
+  Token *next;    // Next token
   int val;        // If kind is TK_NUM, its value
-  CharBPtr loc;      // Token location
-  unsigned len;        // Token length
+  char *loc;      // Token location
+  int len;        // Token length
 };
 
 void error(char *fmt, ...);
-void verror_at(CharBPtr loc, char *fmt, va_list ap);
-void error_at(CharBPtr loc, char *fmt, ...);
-void error_tok(TokenBPtr tok, char *fmt, ...);
-bool equal(TokenBPtr tok, char *op);
-TokenBPtr skip(TokenBPtr tok, char *s);
-TokenBPtr tokenize(CharBPtr p);
+void verror_at(char *loc, char *fmt, va_list ap);
+void error_at(char *loc, char *fmt, ...);
+void error_tok(Token *tok, char *fmt, ...);
+bool equal(Token *tok, char *op);
+Token *skip(Token *tok, char *s);
+Token *tokenize(char *p);
 
 //
 // parse.c
@@ -80,25 +55,17 @@ TokenBPtr tokenize(CharBPtr p);
 
 // Local variable
 typedef struct Obj Obj;
-typedef struct {
-  char bank;
-  Obj *ptr;
-} ObjBPtr;
 struct Obj {
-  ObjBPtr next;
-  CharBPtr name; // Variable name
+  Obj *next;
+  char *name; // Variable name
   int offset; // Offset from RBP
 };
 
 // Function
 typedef struct Function Function;
-typedef struct {
-  char bank;
-  Function *ptr;
-} FunctionBPtr;
 struct Function {
-  NodeBPtr body;
-  ObjBPtr locals;
+  Node *body;
+  Obj *locals;
   int stack_size;
 };
 
@@ -124,21 +91,21 @@ typedef enum {
 // AST node type
 struct Node {
   NodeKind kind; // Node kind
-  NodeBPtr next; // Next node
-  NodeBPtr lhs;  // Left-hand side
-  NodeBPtr rhs;  // Right-hand side
+  Node *next;    // Next node
+  Node *lhs;     // Left-hand side
+  Node *rhs;     // Right-hand side
 
   // Block
-  NodeBPtr body;
+  Node *body;
 
-  ObjBPtr var;   // Used if kind == ND_VAR
-  int val;       // Used if kind == ND_NUM
+  Obj *var; // Used if kind == ND_VAR
+  int val;  // Used if kind == ND_NUM
 };
 
-FunctionBPtr parse(TokenBPtr tok);
+Function *parse(Token *tok);
 
 //
 // codegen.c
 //
 
-void codegen(FunctionBPtr prog);
+void codegen(Function *prog);

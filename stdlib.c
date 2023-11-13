@@ -1,8 +1,16 @@
-#include <assert.h>
-#include <ctype.h>
+#include "chibicc.h"
 
-unsigned long strtoul(const char *restrict s, char **restrict p, int base)
-{
+char *strndup(const char *str, size_t size) {
+  char *dup = malloc(size + 1);
+  char *cur = dup;
+  while (size--)
+    if (!(*cur++ = *str++))
+      return dup;
+  *cur = '\0';
+  return dup;
+}
+
+unsigned long strtoul(const char *restrict s, char **restrict p, int base) {
   assert(base == 10 && "Other bases not yet implemented.");
   while (s && isspace(*s))
     ++s;

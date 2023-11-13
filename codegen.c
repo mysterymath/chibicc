@@ -12,7 +12,7 @@ static void push(void) {
 static void pop(char reg) {
   printf("  tay\n");
   printf("  pla\n");
-  printf("  sta __rc%d\n", reg+1);
+  printf("  sta __rc%d\n", reg + 1);
   printf("  pla\n");
   printf("  sta __rc%d\n", reg);
   printf("  tya\n");
@@ -27,9 +27,9 @@ static int align_to(int n, int align) {
 
 // Compute the absolute address of a given node.
 // It's an error if a given node does not reside in memory.
-static void gen_addr(NodeBPtr node) {
-  if (G(node)->kind == ND_VAR) {
-    unsigned offset = G(G(node)->var)->offset;
+static void gen_addr(Node *node) {
+  if (node->kind == ND_VAR) {
+    unsigned offset = node->var->offset;
     printf("  clc\n");
     printf("  lda __rc30\n");
     printf("  adc #%d\n", offset & 0xff);
@@ -45,16 +45,16 @@ static void gen_addr(NodeBPtr node) {
 }
 
 // Generate code for a given node.
-static void gen_expr(NodeBPtr node) {
-  switch (G(node)->kind) {
+static void gen_expr(Node *node) {
+  switch (node->kind) {
   case ND_NUM: {
-    unsigned val = G(node)->val;
+    unsigned val = node->val;
     printf("  lda #%d\n", val & 0xff);
     printf("  ldx #%d\n", val >> 8 & 0xff);
     return;
   }
   case ND_NEG:
-    gen_expr(G(node)->lhs);
+    gen_expr(node->lhs);
     printf("  clc\n");
     printf("  eor #$ff\n");
     printf("  adc #1\n");
@@ -76,9 +76,9 @@ static void gen_expr(NodeBPtr node) {
     printf("  lda (__rc2),y\n");
     return;
   case ND_ASSIGN:
-    gen_addr(G(node)->lhs);
+    gen_addr(node->lhs);
     push();
-    gen_expr(G(node)->rhs);
+    gen_expr(node->rhs);
     pop(2);
     printf("  ldy #0\n");
     printf("  sta (__rc2),y\n");
@@ -90,12 +90,12 @@ static void gen_expr(NodeBPtr node) {
     return;
   }
 
-  gen_expr(G(node)->rhs);
+  gen_expr(node->rhs);
   push();
-  gen_expr(G(node)->lhs);
+  gen_expr(node->lhs);
   pop(2);
 
-  switch (G(node)->kind) {
+  switch (node->kind) {
   case ND_ADD:
     printf("  clc\n");
     printf("  adc __rc2\n");
@@ -126,7 +126,7 @@ static void gen_expr(NodeBPtr node) {
     printf("  bne 1f\n");
     printf("  cmp __rc2\n");
     printf("  bne 1f\n");
-    if (G(node)->kind == ND_EQ) {
+    if (node->kind == ND_EQ) {
       printf("  lda #1\n");
       printf("  bne 2f\n");
       printf("1:\n");
@@ -152,7 +152,7 @@ static void gen_expr(NodeBPtr node) {
     printf("  eor #$80\n");
     printf("1:\n");
 
-    if (G(node)->kind == ND_LT)
+    if (node->kind == ND_LT)
       printf("  bcs 1f\n");
     else
       printf("  bcc 1f\n");
@@ -169,18 +169,18 @@ static void gen_expr(NodeBPtr node) {
   error("invalid expression");
 }
 
-static void gen_stmt(NodeBPtr node) {
-  switch (G(node)->kind) {
+static void gen_stmt(Node *node) {
+  switch (node->kind) {
   case ND_BLOCK:
-    for (NodeBPtr n = G(node)->body; n.ptr; n = G(n)->next)
+    for (Node *n = node->body; n; n = n->next)
       gen_stmt(n);
     return;
   case ND_RETURN:
-    gen_expr(G(node)->lhs);
+    gen_expr(node->lhs);
     printf("  jmp .L.return\n");
     return;
   case ND_EXPR_STMT:
-    gen_expr(G(node)->lhs);
+    gen_expr(node->lhs);
     return;
   }
 
@@ -188,23 +188,23 @@ static void gen_stmt(NodeBPtr node) {
 }
 
 // Assign offsets to local variables.
-static void assign_lvar_offsets(FunctionBPtr prog) {
+static void assign_lvar_offsets(Function *prog) {
   int offset = 0;
-  for (ObjBPtr var = G(prog)->locals; var.ptr; var = G(var)->next) {
+  for (Obj *var = prog->locals; var; var = var->next) {
     offset += 2;
-    G(var)->offset = -offset;
+    var->offset = -offset;
   }
-  G(prog)->stack_size = offset;
+  prog->stack_size = offset;
 }
 
-void codegen(FunctionBPtr prog) {
+void codegen(Function *prog) {
   assign_lvar_offsets(prog);
 
   printf("  .globl main\n");
   printf("main:\n");
 
   // Prologue
-  unsigned stack_size = G(prog)->stack_size;
+  unsigned stack_size = prog->stack_size;
   printf("  lda __rc30\n");
   printf("  pha\n");
   printf("  lda __rc31\n");
@@ -221,7 +221,7 @@ void codegen(FunctionBPtr prog) {
   printf("  sbc #%d\n", stack_size >> 8 & 0xff);
   printf("  sta __rc1\n");
 
-  gen_stmt(G(prog)->body);
+  gen_stmt(prog->body);
   assert(depth == 0);
 
   printf(".L.return:\n");

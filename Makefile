@@ -1,10 +1,10 @@
-CXX=~/mos-bin/mos-cx16-clang++
-CXXFLAGS=-Os -g -fno-common -isystem .
-SRCS=$(wildcard *.cc)
-OBJS=$(SRCS:.cc=.o)
+CC=~/mos-bin/mos-cx16-clang
+CFLAGS=-std=c11 -Os -g -fno-common -isystem .
+SRCS=$(wildcard *.c)
+OBJS=$(SRCS:.c=.o)
 
 chibicc: $(OBJS)
-	$(CXX) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 $(OBJS): chibicc.h
 
