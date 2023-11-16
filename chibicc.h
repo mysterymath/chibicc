@@ -13,6 +13,11 @@
 // stdlib.c
 //
 
+typedef void FILE;
+#define stderr ((FILE *)0)
+int fprintf(FILE *restrict stream, const char *restrict format, ...);
+int vfprintf(FILE *restrict stream, const char *restrict format, va_list vlist);
+
 char *strndup(const char *str, size_t size);
 unsigned long strtoul(const char *restrict s, char **restrict p, int base);
 

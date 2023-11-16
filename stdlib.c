@@ -37,3 +37,19 @@ unsigned long strtoul(const char *restrict s, char **restrict p, int base) {
     *p = s;
   return val;
 }
+
+int fprintf(FILE *restrict stream, const char *restrict format, ...) {
+  va_list va;
+  va_start(va, format);
+  const int ret = vfprintf(stream, format, va);
+  va_end(va);
+  return ret;
+}
+
+int vfprintf(FILE *restrict stream, const char *restrict format, va_list vlist) {
+  // Assume stderr
+  cbm_k_chkin(2);
+  const int ret = vprintf(format, vlist);
+  cbm_k_chkin(1);
+  return ret;
+}

@@ -7,19 +7,19 @@ static char *current_input;
 void error(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  vprintf(fmt, ap);
-  printf("\n");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
   exit(1);
 }
 
 // Reports an error location and exit.
-void verror_at(char *loc, char *fmt, va_list ap) {
+static void verror_at(char *loc, char *fmt, va_list ap) {
   int pos = loc - current_input;
-  printf("%s\n", current_input);
-  printf("%*s", pos, ""); // print pos spaces.
-  printf("^ ");
-  vprintf(fmt, ap);
-  printf("\n");
+  fprintf(stderr, "%s\n", current_input);
+  fprintf(stderr, "%*s", pos, ""); // print pos spaces.
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
   exit(1);
 }
 
