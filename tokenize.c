@@ -66,12 +66,14 @@ static bool is_ident1(char c) {
 }
 
 // Returns true if c is valid as a non-first character of an identifier.
-static bool is_ident2(char c) { return is_ident1(c) || ('0' <= c && c <= '9'); }
+static bool is_ident2(char c) {
+  return is_ident1(c) || ('0' <= c && c <= '9');
+}
 
 // Read a punctuator token from p and returns its length.
 static int read_punct(char *p) {
-  if (startswith(p, "==") || startswith(p, "!=") || startswith(p, "<=") ||
-      startswith(p, ">="))
+  if (startswith(p, "==") || startswith(p, "!=") ||
+      startswith(p, "<=") || startswith(p, ">="))
     return 2;
 
   return ispunct(*p) ? 1 : 0;

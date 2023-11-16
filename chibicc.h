@@ -42,7 +42,6 @@ struct Token {
 };
 
 void error(char *fmt, ...);
-void verror_at(char *loc, char *fmt, va_list ap);
 void error_at(char *loc, char *fmt, ...);
 void error_tok(Token *tok, char *fmt, ...);
 bool equal(Token *tok, char *op);
@@ -108,8 +107,8 @@ struct Node {
   // Block
   Node *body;
 
-  Obj *var; // Used if kind == ND_VAR
-  int val;  // Used if kind == ND_NUM
+  Obj *var;      // Used if kind == ND_VAR
+  int val;       // Used if kind == ND_NUM
 };
 
 Function *parse(Token *tok);

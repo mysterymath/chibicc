@@ -18,11 +18,9 @@ static Node *primary(Token **rest, Token *tok);
 // Find a local variable by name.
 static Obj *find_var(Token *tok) {
   for (Obj *var = locals; var; var = var->next)
-    if (strlen(var->name) == tok->len &&
-        !strncmp(tok->loc, var->name, tok->len))
+    if (strlen(var->name) == tok->len && !strncmp(tok->loc, var->name, tok->len))
       return var;
-  Obj *null = {0, NULL};
-  return null;
+  return NULL;
 }
 
 static Node *new_node(NodeKind kind) {
@@ -124,13 +122,13 @@ static Node *stmt(Token **rest, Token *tok) {
 
 // compound-stmt = stmt* "}"
 static Node *compound_stmt(Token **rest, Token *tok) {
-  Node *head = calloc(1, sizeof(Node));
-  Node *cur = head;
+  Node head = {};
+  Node *cur = &head;
   while (!equal(tok, "}"))
     cur = cur->next = stmt(&tok, tok);
 
   Node *node = new_node(ND_BLOCK);
-  node->body = head->next;
+  node->body = head.next;
   *rest = tok->next;
   return node;
 }
@@ -148,7 +146,9 @@ static Node *expr_stmt(Token **rest, Token *tok) {
 }
 
 // expr = assign
-static Node *expr(Token **rest, Token *tok) { return assign(rest, tok); }
+static Node *expr(Token **rest, Token *tok) {
+  return assign(rest, tok);
+}
 
 // assign = equality ("=" assign)?
 static Node *assign(Token **rest, Token *tok) {
@@ -178,6 +178,7 @@ static Node *equality(Token **rest, Token *tok) {
     return node;
   }
 }
+
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 static Node *relational(Token **rest, Token *tok) {
   Node *node = add(&tok, tok);
