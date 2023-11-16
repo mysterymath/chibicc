@@ -35,23 +35,16 @@ void error_tok(Token *tok, char *fmt, ...) {
   verror_at(tok->loc, fmt, ap);
 }
 
-// Consumes the current token if it matches `s`.
+// Consumes the current token if it matches `op`.
 bool equal(Token *tok, char *op) {
   return memcmp(tok->loc, op, tok->len) == 0 && op[tok->len] == '\0';
 }
 
-// Ensure that the current token is `s`.
-Token *skip(Token *tok, char *s) {
-  if (!equal(tok, s))
-    error_tok(tok, "expected '%s'", s);
+// Ensure that the current token is `op`.
+Token *skip(Token *tok, char *op) {
+  if (!equal(tok, op))
+    error_tok(tok, "expected '%s'", op);
   return tok->next;
-}
-
-// Ensure that the current token is TK_NUM.
-static int get_number(Token *tok) {
-  if (tok->kind != TK_NUM)
-    error_tok(tok, "expected a number");
-  return tok->val;
 }
 
 // Create a new token.
@@ -99,26 +92,25 @@ static void convert_keywords(Token *tok) {
       t->kind = TK_KEYWORD;
 }
 
-// Tokenize `current_input` and returns new tokens.
+// Tokenize a given string and returns new tokens.
 Token *tokenize(char *p) {
   current_input = p;
-  Token head;
+  Token head = {};
   Token *cur = &head;
 
   while (*p) {
     // Skip whitespace characters.
     if (isspace(*p)) {
-      ++p;
+      p++;
       continue;
     }
 
     // Numeric literal
     if (isdigit(*p)) {
       cur = cur->next = new_token(TK_NUM, p, p);
-      char *end;
-      cur->val = strtoul(p, &end, 10);
-      cur->len = end - p;
-      p = end;
+      char *q = p;
+      cur->val = strtoul(p, &p, 10);
+      cur->len = p - q;
       continue;
     }
 
@@ -126,7 +118,7 @@ Token *tokenize(char *p) {
     if (is_ident1(*p)) {
       char *start = p;
       do {
-        ++p;
+        p++;
       } while (is_ident2(*p));
       cur = cur->next = new_token(TK_IDENT, start, p);
       continue;
