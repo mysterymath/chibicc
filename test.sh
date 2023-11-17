@@ -3,10 +3,14 @@ assert() {
   expected="$1"
   input="$2"
 
-  ./chibicc "$input" > tmp.s || exit
-  gcc -static -o tmp tmp.s
-  ./tmp
-  actual="$?"
+  mkdir -p ./tmp
+  rm -rf ./tmp/*
+  echo "$input" > ./tmp/c.c
+
+  timeout 0.5 x16emu -warp -rom /usr/share/x16-rom/rom.bin -prg build/chibicc -run -fsroot ./tmp
+  ~/mos-bin/mos-cx16-clang -Os -o ./tmp/a.prg ./tmp/c.s exit-test.c
+  timeout 0.6 x16emu -warp -rom /usr/share/x16-rom/rom.bin -prg tmp/a.prg -run -fsroot ./tmp
+  read actual < ./tmp/result
 
   if [ "$actual" = "$expected" ]; then
     echo "$input => $actual"
@@ -79,7 +83,7 @@ assert 3 '{ x=3; y=&x; z=&y; return **z; }'
 assert 5 '{ x=3; y=5; return *(&x+8); }'
 assert 3 '{ x=3; y=5; return *(&y-8); }'
 assert 5 '{ x=3; y=&x; *y=5; return x; }'
-assert 7 '{ x=3; y=5; *(&x+8)=7; return y; }'
-assert 7 '{ x=3; y=5; *(&y-8)=7; return x; }'
+assert 7 '{ x=3; y=5; *(&x+2)=7; return y; }'
+assert 7 '{ x=3; y=5; *(&y-2)=7; return x; }'
 
 echo OK

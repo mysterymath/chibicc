@@ -9,7 +9,7 @@ int main(void) {
   putchar(0x0f); // Enable ISO mode
 
   // Open input file to LFN 2
-  cbm_k_setnam("a.in,S,R");
+  cbm_k_setnam("c.c,S,R");
   cbm_k_setlfs(2, 8, 2);
   cbm_k_open();
   cbm_k_chkin(2);
@@ -23,7 +23,7 @@ int main(void) {
 
   // Open output file to LFN 2
   cbm_k_close(2);
-  cbm_k_setnam("@:a.out,S,W");
+  cbm_k_setnam("@:c.s,S,W");
   cbm_k_setlfs(2, 8, 3);
   cbm_k_open();
   cbm_k_chkout(2);

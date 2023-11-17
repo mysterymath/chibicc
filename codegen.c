@@ -172,7 +172,7 @@ static void gen_expr(Node *node) {
     printf("  cmp __rc2\n");
     printf("  tay\n");
     printf("  txa\n");
-    printf("  sbc __rc2\n");
+    printf("  sbc __rc3\n");
     printf("  bvc 1f\n");
     printf("  eor #$80\n");
     printf("1:\n");
