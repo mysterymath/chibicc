@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#include <assert.h>
 #include <cbm.h>
 #include <ctype.h>
 #include <cx16.h>

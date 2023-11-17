@@ -53,10 +53,20 @@ int fprintf(FILE *restrict stream, const char *restrict format, ...) {
   return ret;
 }
 
+static char lfn = 2;
+
 int vfprintf(FILE *restrict stream, const char *restrict format, va_list vlist) {
+  char old_lfn = lfn;
   // Assume stderr
-  cbm_k_chkin(2);
+  cbm_k_chkout((lfn = 1));
   const int ret = vprintf(format, vlist);
-  cbm_k_chkin(1);
+  cbm_k_chkout(old_lfn);
   return ret;
+}
+
+void __putchar(char c) {
+  if (lfn == 1 && c == '\n')
+    cbm_k_chrout('\r');
+  else
+    cbm_k_chrout(c);
 }
