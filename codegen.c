@@ -158,7 +158,7 @@ static void gen_expr(Node *node) {
       printf("  lda #0\n");
     } else {
       printf("  lda #0\n");
-      printf("  bne 2f\n");
+      printf("  beq 2f\n");
       printf("1:\n");
       printf("  lda #1\n");
     }
