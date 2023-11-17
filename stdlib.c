@@ -1,5 +1,12 @@
 #include "chibicc.h"
 
+void __assert(char condition, const char *str) {
+  if (condition)
+    return;
+  printf("assertion failed: %s\n", str);
+  abort();
+}
+
 char *strndup(const char *str, size_t size) {
   char *dup = malloc(size + 1);
   char *cur = dup;

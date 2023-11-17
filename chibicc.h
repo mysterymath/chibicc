@@ -11,7 +11,15 @@
 
 //
 // stdlib.c
-//
+
+
+#ifdef NDEBUG
+#  define assert(condition) ((void)0)
+#else
+#  define assert(condition) __assert(condition, #condition)
+#endif
+
+void __assert(char condition, const char *str);
 
 typedef void FILE;
 #define stderr ((FILE *)0)

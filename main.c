@@ -2,7 +2,7 @@
 
 int main(void) {
   // Open input file to fd 0
-  cbm_k_setnam("a.in,s,w");
+  cbm_k_setnam("a.in,s,r");
   cbm_k_setlfs(0, 3, 255);
   cbm_k_open();
   cbm_k_chkin(1);
