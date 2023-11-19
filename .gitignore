@@ -1,7 +1,11 @@
+.cache/
+.vscode/
 **/*~
 **/\#*
 **/*.o
 **/*.s
 **/a.out
+build/
 /tmp*
 /chibicc
+compile_commands.json
