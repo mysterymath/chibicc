@@ -7,7 +7,7 @@ add_executable(chibicc
   codegen.c
   main.c
   parse.c
-  stdlib.c
+  std.c
   type.c
   tokenize.c
 )

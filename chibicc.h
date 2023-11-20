@@ -8,28 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-//
-// stdlib.c
-//
-
-#ifdef NDEBUG
-#  define assert(condition) ((void)0)
-#else
-#  define assert(condition) __assert(condition, #condition)
-#endif
-
-void __assert(char condition, const char *str);
-
-typedef void FILE;
-#define stderr ((FILE *)0)
-int fprintf(FILE *restrict stream, const char *restrict format, ...);
-int vfprintf(FILE *restrict stream, const char *restrict format, va_list vlist);
-
-char *strndup(const char *str, size_t size);
-unsigned long strtoul(const char *restrict s, char **restrict p, int base);
-
-typedef struct Type Type;
-typedef struct Node Node;
+#include "std.h"
 
 //
 // tokenize.c
