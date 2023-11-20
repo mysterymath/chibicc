@@ -5,9 +5,9 @@ struct _FILE {
   bool is_screen;
 };
 
-struct _FILE _stdin = {/*lfn=*/0, /*is_screen=*/true};
-struct _FILE _stdout = {/*lfn=*/1, /*is_screen=*/true};
-struct _FILE _stderr = {/*lfn=*/2, /*is_screen=*/true};
+struct _FILE _stdin = {/*lfn=*/1, /*is_screen=*/true};
+struct _FILE _stdout = {/*lfn=*/2, /*is_screen=*/true};
+struct _FILE _stderr = {/*lfn=*/3, /*is_screen=*/true};
 
 __attribute__((constructor)) static void init() {
   cbm_k_setnam("");
