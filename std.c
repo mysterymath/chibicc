@@ -1,33 +1,33 @@
 #include "chibicc.h"
 
-struct _FILE {
-  char lfn;
-  bool is_screen;
+#define FILE_NUM 10
+FILE _files[FILE_NUM] = {
+    {/*is_open=*/true, /*is_screen=*/true},
+    {/*is_open=*/true, /*is_screen=*/true},
+    {/*is_open=*/true, /*is_screen=*/true},
 };
 
-struct _FILE _stdin = {/*lfn=*/1, /*is_screen=*/true};
-struct _FILE _stdout = {/*lfn=*/2, /*is_screen=*/true};
-struct _FILE _stderr = {/*lfn=*/3, /*is_screen=*/true};
+static char get_lfn(FILE *f) { return f - _files + 1; }
 
 __attribute__((constructor)) static void init() {
   cbm_k_setnam("");
 
-  cbm_k_setlfs(stdin->lfn, 0, 2);
+  cbm_k_setlfs(get_lfn(stdin), 0, 2);
   cbm_k_open();
-  cbm_k_chkin(stdin->lfn);
+  cbm_k_chkin(get_lfn(stdin));
 
-  cbm_k_setlfs(stdout->lfn, 3, 2);
+  cbm_k_setlfs(get_lfn(stdout), 3, 2);
   cbm_k_open();
-  cbm_k_chkout(stdout->lfn);
+  cbm_k_chkout(get_lfn(stdout));
 
-  cbm_k_setlfs(stderr->lfn, 3, 2);
+  cbm_k_setlfs(get_lfn(stderr), 3, 2);
   cbm_k_open();
 }
 
 __attribute__((destructor)) static void fini() {
-  cbm_k_close(stdin->lfn);
-  cbm_k_close(stdout->lfn);
-  cbm_k_close(stderr->lfn);
+  cbm_k_close(get_lfn(stdin));
+  cbm_k_close(get_lfn(stdout));
+  cbm_k_close(get_lfn(stderr));
   cbm_k_clrch();
 }
 
@@ -76,13 +76,20 @@ unsigned long strtoul(const char *restrict s, char **restrict p, int base) {
   return val;
 }
 
-FILE *freopen(const char *restrict pathname, const char *restrict mode,
-              FILE *restrict stream) {
-  cbm_k_close(stream->lfn);
-  stream->is_screen = false;
+static FILE *get_free_file() {
+  for (int i = 0; i < FILE_NUM; i++)
+    if (!_files[i].is_open)
+      return &_files[i];
+  return NULL;
+}
+
+static void open_file(const char *restrict pathname, const char *restrict mode,
+                      FILE *f) {
+  f->is_open = true;
 
   size_t len = strlen(pathname);
-  char cbm_name[len+7];
+  char cbm_name[len + 7];
+
   switch (mode[0]) {
   case 'r':
     strcpy(cbm_name, pathname);
@@ -95,14 +102,32 @@ FILE *freopen(const char *restrict pathname, const char *restrict mode,
     break;
   }
   cbm_k_setnam(cbm_name);
-  cbm_k_setlfs(stream->lfn, 8, 2);
+  cbm_k_setlfs(get_lfn(f), 8, 2);
   cbm_k_open();
+}
+
+FILE *fopen(const char *restrict pathname, const char *restrict mode) {
+  FILE *stream = get_free_file();
+  open_file(pathname, mode, stream);
+  return stream;
+}
+
+int fclose(FILE *restrict stream) {
+  cbm_k_close(get_lfn(stream));
+  stream->is_open = false;
+  stream->is_screen = false;
+  return 0;
+}
+
+FILE *freopen(const char *restrict pathname, const char *restrict mode,
+              FILE *restrict stream) {
+  fclose(stream);
+  open_file(pathname, mode, stream);
   // stdin and stdout must be checked out again once reopened
   if (stream == stdin)
-    cbm_k_chkin(stream->lfn);
+    cbm_k_chkin(get_lfn(stream));
   else if (stream == stdout)
-    cbm_k_chkout(stream->lfn);
-
+    cbm_k_chkout(get_lfn(stream));
   return stream;
 }
 
@@ -116,11 +141,23 @@ int fprintf(FILE *restrict stream, const char *restrict format, ...) {
 
 int vfprintf(FILE *restrict stream, const char *restrict format,
              va_list vlist) {
-  // Assume stderr
-  cbm_k_chkout((char)stream);
+  cbm_k_chkout(get_lfn(stream));
   const int ret = vprintf(format, vlist);
-  cbm_k_chkout((char)stdout);
+  cbm_k_chkout(get_lfn(stdout));
   return ret;
+}
+
+size_t fwrite(const void *restrict ptr, size_t size, size_t nitems,
+              FILE *restrict stream) {
+  cbm_k_chkout(get_lfn(stream));
+  const char *c = (const char *)ptr;
+  while (nitems--) {
+    size_t s = size;
+    while (s--)
+      putchar(*c++);
+  }
+  cbm_k_chkout(get_lfn(stdout));
+  return nitems;
 }
 
 void __putchar(char c) {

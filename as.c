@@ -1,6 +1,8 @@
 #include <cbm.h>
 #include <elf.h>
 
+#include "std.h"
+
 static Elf32_Ehdr elf = {
     {ELFMAG0, ELFMAG1, ELFMAG2, ELFMAG3, ELFCLASS32, ELFDATA2LSB, EV_CURRENT,
      ELFOSABI_NONE, /*EI_ABIVERSION=*/0},
@@ -21,17 +23,10 @@ static Elf32_Ehdr elf = {
 };
 
 int main(void) {
-  cbm_k_setnam("@:a.out,S,W");
-  cbm_k_setlfs(1, 8, 2);
-  cbm_k_open();
-  cbm_k_chkout(1);
+  FILE *elf_file = fopen("a.out", "w");
+  fwrite(&elf, sizeof(elf), 1, elf_file);
+  fclose(elf_file);
 
-  char *c = (char *)&elf;
-  for (unsigned i = 0; i < sizeof(elf); ++i)
-    cbm_k_chrout(*c++);
-
-  cbm_k_close(1);
   cbm_k_clrch();
-
   return 0;
 }

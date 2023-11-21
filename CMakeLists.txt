@@ -14,5 +14,6 @@ add_executable(chibicc
 
 add_executable(as
   as.c
+  std.c
 )
 target_include_directories(as SYSTEM PRIVATE sysroot/include)
