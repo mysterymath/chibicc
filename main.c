@@ -3,22 +3,19 @@
 int main(void) {
   putchar(0x0f); // Enable ISO mode
 
-  freopen("c.c", "r", stdin);
+  FILE *input = fopen("c.c", "r");
 
-  char text[4096];
+  char text[256];
+  size_t size = fread(text, 1, sizeof(text), input);
+  text[size] = '\0';
 
-  char *c = text;
-  while (!(cbm_k_readst() & 0x40))
-    *c++ = cbm_k_chrin();
-  *c++ = '\0';
-
-  // Open output file to LFN 2
-  freopen("c.s", "w", stdout);
+  fclose(input);
 
   Token* tok = tokenize(text);
   Function* prog = parse(tok);
 
   // Traverse the AST to emit assembly.
+  freopen("c.s", "w", stdout);
   codegen(prog);
 
   return 0;

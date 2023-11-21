@@ -12,7 +12,13 @@
 
 void __assert(char condition, const char *str);
 
-typedef struct { bool is_open; bool is_screen; } FILE;
+#define EOF (-1)
+
+typedef struct {
+  bool is_open;
+  bool is_screen;
+  bool is_eof;
+} FILE;
 extern FILE _files[];
 #define stdin (&_files[0])
 #define stdout (&_files[1])
@@ -23,9 +29,13 @@ int fclose(FILE *restrict stream);
 FILE *freopen(const char *restrict pathname, const char *restrict mode,
               FILE *restrict stream);
 
+int feof(FILE *stream);
+
 int fprintf(FILE *restrict stream, const char *restrict format, ...);
 int vfprintf(FILE *restrict stream, const char *restrict format, va_list vlist);
 
+size_t fread(void *restrict ptr, size_t size, size_t nitems,
+              FILE *restrict stream);
 size_t fwrite(const void *restrict ptr, size_t size, size_t nitems,
               FILE *restrict stream);
 

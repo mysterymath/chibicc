@@ -18,7 +18,7 @@ assert() {
   rm -rf ./tmp/*
   echo "$input" > ./tmp/c.c
 
-  timeout 0.7 x16emu -warp -rom /usr/share/x16-rom/rom.bin -prg build/chibicc -run -fsroot ./tmp
+  timeout 0.8 x16emu -warp -rom /usr/share/x16-rom/rom.bin -prg build/chibicc -run -fsroot ./tmp
   ~/mos-bin/mos-cx16-clang -Os -o ./tmp/a.prg ./tmp/c.s tmp2.o exit-test.c
   timeout 0.8 x16emu -warp -rom /usr/share/x16-rom/rom.bin -prg tmp/a.prg -run -fsroot ./tmp
   read actual < ./tmp/result

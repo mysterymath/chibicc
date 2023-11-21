@@ -114,8 +114,7 @@ FILE *fopen(const char *restrict pathname, const char *restrict mode) {
 
 int fclose(FILE *restrict stream) {
   cbm_k_close(get_lfn(stream));
-  stream->is_open = false;
-  stream->is_screen = false;
+  memset(stream, 0, sizeof(FILE));
   return 0;
 }
 
@@ -131,6 +130,8 @@ FILE *freopen(const char *restrict pathname, const char *restrict mode,
   return stream;
 }
 
+int feof(FILE *stream) { return stream->is_eof; }
+
 int fprintf(FILE *restrict stream, const char *restrict format, ...) {
   va_list va;
   va_start(va, format);
@@ -145,6 +146,36 @@ int vfprintf(FILE *restrict stream, const char *restrict format,
   const int ret = vprintf(format, vlist);
   cbm_k_chkout(get_lfn(stdout));
   return ret;
+}
+
+static int get_char(FILE *stream) {
+  if (feof(stream))
+    return EOF;
+  char c = cbm_k_chrin();
+  stream->is_eof = cbm_k_readst() & 0x40;
+  return c;
+}
+
+size_t fread(void *restrict ptr, size_t size, size_t nitems,
+             FILE *restrict stream) {
+  if (feof(stream))
+    return 0;
+  cbm_k_chkin(get_lfn(stream));
+  size_t nread = 0;
+  char *cur = ptr;
+  while (nitems--) {
+    size_t s = size;
+    while (s--) {
+      int c = get_char(stream);
+      if (c == EOF)
+        goto done;
+      *cur++ = c;
+    }
+    ++nread;
+  }
+done:
+  cbm_k_chkin(get_lfn(stdin));
+  return nread;
 }
 
 size_t fwrite(const void *restrict ptr, size_t size, size_t nitems,
