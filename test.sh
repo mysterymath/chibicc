@@ -164,7 +164,7 @@ assert 1 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[1]; }'
 assert 2 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[2]; }'
 assert 3 'int x[4]; int main() { x[0]=0; x[1]=1; x[2]=2; x[3]=3; return x[3]; }'
 
-assert 8 'int x; int main() { return sizeof(x); }'
-assert 32 'int x[4]; int main() { return sizeof(x); }'
+assert 2 'int x; int main() { return sizeof(x); }'
+assert 8 'int x[4]; int main() { return sizeof(x); }'
 
 echo OK
