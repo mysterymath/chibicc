@@ -45,8 +45,12 @@ static bool read_stmt(char *stmt, size_t max, FILE* f) {
     if (c == EOF)
       error("file did not end with newline");
     *stmt++ = c;
-    if (c == '\n')
+    if (c == '\n') {
+      if (!max)
+        break;
+      *stmt = '\0';
       return true;
+    }
   }
   error("line too long");
 }
