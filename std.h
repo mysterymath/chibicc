@@ -29,6 +29,8 @@ int fclose(FILE *restrict stream);
 FILE *freopen(const char *restrict pathname, const char *restrict mode,
               FILE *restrict stream);
 
+int fgetc(FILE *stream);
+
 int feof(FILE *stream);
 
 int fprintf(FILE *restrict stream, const char *restrict format, ...);

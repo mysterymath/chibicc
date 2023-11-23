@@ -15,7 +15,7 @@ int main(void) {
   Function* prog = parse(tok);
 
   // Traverse the AST to emit assembly.
-  freopen("c.s", "w", stdout);
+  freopen("a.s", "w", stdout);
   codegen(prog);
 
   return 0;

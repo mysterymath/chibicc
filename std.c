@@ -148,9 +148,7 @@ int vfprintf(FILE *restrict stream, const char *restrict format,
   return ret;
 }
 
-static int get_char(FILE *stream) {
-  if (feof(stream))
-    return EOF;
+static char get_char(FILE *stream) {
   char c = cbm_k_chrin();
   stream->is_eof = cbm_k_readst() & 0x40;
   return c;
@@ -166,16 +164,24 @@ size_t fread(void *restrict ptr, size_t size, size_t nitems,
   while (nitems--) {
     size_t s = size;
     while (s--) {
-      int c = get_char(stream);
-      if (c == EOF)
+      if (feof(stream))
         goto done;
-      *cur++ = c;
+      *cur++ = get_char(stream);
     }
     ++nread;
   }
 done:
   cbm_k_chkin(get_lfn(stdin));
   return nread;
+}
+
+int fgetc(FILE *stream) {
+  if (feof(stream))
+    return EOF;
+  cbm_k_chkin(get_lfn(stream));
+  char c = get_char(stream);
+  cbm_k_chkin(get_lfn(stdin));
+  return c;
 }
 
 size_t fwrite(const void *restrict ptr, size_t size, size_t nitems,
