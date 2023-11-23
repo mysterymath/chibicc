@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "as-tokenize.h"
 #include "std.h"
 
 static Elf32_Ehdr elf = {
@@ -57,6 +58,7 @@ int main(void) {
 
   char stmt[160];
   while (read_stmt(stmt, sizeof(stmt), input_file)) {
+    Token *tok = tokenize(stmt);
   }
 
   FILE *elf_file = fopen("a.out", "w");
