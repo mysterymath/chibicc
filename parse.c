@@ -633,3 +633,10 @@ Obj *parse(Token *tok) {
   }
   return globals;
 }
+
+Obj *find_fn(const char *name) {
+  for (Obj *obj = globals; obj; obj = obj->next)
+    if (obj->is_function && !strcmp(obj->name, name))
+      return obj;
+  return NULL;
+}

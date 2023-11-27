@@ -120,6 +120,8 @@ struct Node {
 
 Obj *parse(Token *tok);
 
+Obj *find_fn(const char *name);
+
 //
 // type.c
 //

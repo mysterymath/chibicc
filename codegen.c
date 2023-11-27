@@ -173,16 +173,31 @@ static void gen_expr(Node *node) {
     store(node->ty);
     return;
   case ND_FUNCALL: {
+    Obj *fn = find_fn(node->funcname);
+
     int nargs = 0;
     bool reg_used[NUM_ARG_REGS] = {0};
     // Pushed registers in push order.
     int saved_regs[4];
     int num_saved = 0;
-    for (Node *arg = node->args; arg; arg = arg->next) {
+    Obj *param = fn ? fn->params : NULL;
+    for (Node *arg = node->args; arg;
+         arg = arg->next, param = param ? param->next : NULL) {
+      if (fn && !param)
+        error_tok(arg->tok, "too many arguments");
+
+      Type *ty;
+      if (param)
+        ty = param->ty;
+      else if (is_integer(arg->ty) && arg->ty->size < 2)
+        ty = ty_int;
+      else
+        ty = arg->ty;
+
       gen_expr(arg);
 
       // Pointers are assigned to imaginary pointer registers
-      if (arg->ty->kind == TY_PTR) {
+      if (ty->kind == TY_PTR) {
         int reg = assign_ptr_reg(reg_used);
 
         // RS1 is used for generating expressions, so push it.
@@ -201,7 +216,7 @@ static void gen_expr(Node *node) {
       }
 
       // Assign each byte separately.
-      for (int i = 0; i < arg->ty->size; i++) {
+      for (int i = 0; i < ty->size; i++) {
         int reg = assign_byte_reg(reg_used);
 
         if (reg < 4) {
