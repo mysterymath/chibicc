@@ -421,13 +421,18 @@ static void assign_lvar_offsets(Obj *prog) {
   }
 }
 
+static bool startswith(const char *restrict str, const char *restrict pre) {
+  return !strncmp(str, pre, strlen(pre));
+}
+
 static void emit_data(Obj *prog) {
   for (Obj *var = prog; var; var = var->next) {
     if (var->is_function)
       continue;
 
     printf("  .data\n");
-    printf("  .globl %s\n", var->name);
+    if (!startswith(var->name, ".L"))
+      printf("  .globl %s\n", var->name);
     printf("%s:\n", var->name);
 
     if (var->init_data) {
